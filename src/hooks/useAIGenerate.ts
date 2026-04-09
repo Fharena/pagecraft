@@ -22,7 +22,7 @@ const LOADING_MESSAGES = [
 
 export function useAIGenerate() {
   const { product } = useProductStore()
-  const { images } = useImageStore()
+  const { images, aiModelEnabled, aiModelGender, addImages } = useImageStore()
   const {
     setGeneratedContent,
     setRenderedImageUrl,
@@ -63,6 +63,24 @@ export function useAIGenerate() {
       setGeneratedContent(result)
       setActiveTab('copy')
 
+      // AI 모델 이미지 생성
+      if (aiModelEnabled) {
+        setLoadingMessage('AI 모델 이미지를 생성하고 있습니다...')
+        try {
+          const modelResult = await api.post<{ image: string }>('/api/image/generate', {
+            productName: product.name,
+            category: product.category,
+            gender: aiModelGender,
+            images: images.map((img) => img.dataUrl),
+          })
+          if (modelResult.image) {
+            addImages([modelResult.image])
+          }
+        } catch (err) {
+          console.error('AI 모델 이미지 생성 실패:', err)
+        }
+      }
+
       // Render PNG
       setIsRenderingPng(true)
       setLoadingMessage('상세페이지 이미지를 생성하고 있습니다...')
@@ -88,6 +106,9 @@ export function useAIGenerate() {
   }, [
     images,
     product,
+    aiModelEnabled,
+    aiModelGender,
+    addImages,
     setGeneratedContent,
     setRenderedImageUrl,
     setIsGenerating,
