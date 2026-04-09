@@ -1,0 +1,62 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #0c0c10;
+  --color-surface: #13131a;
+  --color-accent: #e8c97a;
+  --color-text: #f0ede8;
+  --color-muted: #888888;
+  --color-border: #2a2a35;
+  --color-green: #3ecf8e;
+}
+
+/* Light mode */
+.light {
+  --color-bg: #f4f3f0;
+  --color-surface: #ffffff;
+  --color-accent: #9b6e1a;
+  --color-text: #1a1a1a;
+  --color-muted: #666666;
+  --color-border: #e0ddd8;
+  --color-green: #2da86e;
+}
+
+html {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+}
+
+body {
+  font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-muted);
+}
+
+/* Animations */
+@keyframes slide-in-from-right {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-in.slide-in-from-right {
+  animation: slide-in-from-right 0.3s ease-out;
+}

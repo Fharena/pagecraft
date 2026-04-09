@@ -42,3 +42,7 @@ next-env.d.ts
 public/fonts/*.ttf
 public/fonts/*.otf
 !public/fonts/.gitkeep
+
+# misc
+AGENTS.md
+CLAUDE.md
