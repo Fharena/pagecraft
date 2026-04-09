@@ -15,6 +15,14 @@ function getApiKey(): string {
   return key
 }
 
+function getTextModel(): string {
+  return process.env.GEMINI_TEXT_MODEL || 'gemini-2.5-flash'
+}
+
+function getImageModel(): string {
+  return process.env.GEMINI_IMAGE_MODEL || 'gemini-2.5-flash-preview-image-generation'
+}
+
 function buildSystemPrompt(req: AIGenerateRequest): string {
   return `당신은 한국 이커머스(쿠팡, 네이버 스마트스토어 등) 상세페이지 전문 카피라이터입니다.
 상품 이미지와 정보를 분석하여 구매 전환율이 높은 상세페이지 콘텐츠를 JSON으로 생성하세요.
@@ -106,7 +114,7 @@ export async function generateContent(
   }
 
   const res = await fetch(
-    `${GEMINI_BASE}/gemini-2.5-flash:generateContent?key=${apiKey}`,
+    `${GEMINI_BASE}/${getTextModel()}:generateContent?key=${apiKey}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -141,7 +149,7 @@ export async function generateTitles(
   }
 
   const res = await fetch(
-    `${GEMINI_BASE}/gemini-2.5-flash:generateContent?key=${apiKey}`,
+    `${GEMINI_BASE}/${getTextModel()}:generateContent?key=${apiKey}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -174,7 +182,7 @@ export async function generateTags(req: AITagRequest): Promise<string[]> {
   }
 
   const res = await fetch(
-    `${GEMINI_BASE}/gemini-2.5-flash:generateContent?key=${apiKey}`,
+    `${GEMINI_BASE}/${getTextModel()}:generateContent?key=${apiKey}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -284,7 +292,7 @@ Must look like a real photograph, not AI-generated.`
   }
 
   const res = await fetch(
-    `${GEMINI_BASE}/gemini-2.5-flash-preview-image-generation:generateContent?key=${apiKey}`,
+    `${GEMINI_BASE}/${getImageModel()}:generateContent?key=${apiKey}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
