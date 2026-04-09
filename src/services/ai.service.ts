@@ -20,7 +20,7 @@ function getTextModel(): string {
 }
 
 function getImageModel(): string {
-  return process.env.GEMINI_IMAGE_MODEL || 'gemini-2.5-flash-preview-image-generation'
+  return process.env.GEMINI_IMAGE_MODEL || 'gemini-2.5-flash-image'
 }
 
 function buildSystemPrompt(req: AIGenerateRequest): string {
@@ -109,7 +109,7 @@ export async function generateContent(
     contents: [{ role: 'user', parts }],
     generationConfig: {
       responseMimeType: 'application/json',
-      maxOutputTokens: 2500,
+      maxOutputTokens: 4096,
     },
   }
 

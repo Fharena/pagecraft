@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { persist, createJSONStorage } from 'zustand/middleware'
 import type { ProductImage } from '@/types/product'
 import { generateId } from '@/lib/image'
 
@@ -22,54 +23,62 @@ interface ImageState {
   clearImages: () => void
 }
 
-export const useImageStore = create<ImageState>((set) => ({
-  images: [],
-  storeIntroImage: null,
-  termsImage: null,
-  bgRemoveEnabled: false,
-  aiModelEnabled: false,
-  aiModelGender: 'female',
+export const useImageStore = create<ImageState>()(
+  persist(
+    (set) => ({
+      images: [],
+      storeIntroImage: null,
+      termsImage: null,
+      bgRemoveEnabled: false,
+      aiModelEnabled: false,
+      aiModelGender: 'female',
 
-  addImages: (dataUrls) =>
-    set((state) => ({
-      images: [
-        ...state.images,
-        ...dataUrls.map((dataUrl, i) => ({
-          id: generateId(),
-          dataUrl,
-          bgRemoved: false,
-          order: state.images.length + i,
+      addImages: (dataUrls) =>
+        set((state) => ({
+          images: [
+            ...state.images,
+            ...dataUrls.map((dataUrl, i) => ({
+              id: generateId(),
+              dataUrl,
+              bgRemoved: false,
+              order: state.images.length + i,
+            })),
+          ],
         })),
-      ],
-    })),
 
-  removeImage: (id) =>
-    set((state) => ({
-      images: state.images
-        .filter((img) => img.id !== id)
-        .map((img, i) => ({ ...img, order: i })),
-    })),
+      removeImage: (id) =>
+        set((state) => ({
+          images: state.images
+            .filter((img) => img.id !== id)
+            .map((img, i) => ({ ...img, order: i })),
+        })),
 
-  reorderImages: (fromIndex, toIndex) =>
-    set((state) => {
-      const newImages = [...state.images]
-      const [moved] = newImages.splice(fromIndex, 1)
-      newImages.splice(toIndex, 0, moved)
-      return { images: newImages.map((img, i) => ({ ...img, order: i })) }
+      reorderImages: (fromIndex, toIndex) =>
+        set((state) => {
+          const newImages = [...state.images]
+          const [moved] = newImages.splice(fromIndex, 1)
+          newImages.splice(toIndex, 0, moved)
+          return { images: newImages.map((img, i) => ({ ...img, order: i })) }
+        }),
+
+      updateImage: (id, partial) =>
+        set((state) => ({
+          images: state.images.map((img) =>
+            img.id === id ? { ...img, ...partial } : img,
+          ),
+        })),
+
+      setStoreIntroImage: (dataUrl) => set({ storeIntroImage: dataUrl }),
+      setTermsImage: (dataUrl) => set({ termsImage: dataUrl }),
+      setBgRemoveEnabled: (enabled) => set({ bgRemoveEnabled: enabled }),
+      setAiModelEnabled: (enabled) => set({ aiModelEnabled: enabled }),
+      setAiModelGender: (gender) => set({ aiModelGender: gender }),
+      clearImages: () =>
+        set({ images: [], storeIntroImage: null, termsImage: null }),
     }),
-
-  updateImage: (id, partial) =>
-    set((state) => ({
-      images: state.images.map((img) =>
-        img.id === id ? { ...img, ...partial } : img,
-      ),
-    })),
-
-  setStoreIntroImage: (dataUrl) => set({ storeIntroImage: dataUrl }),
-  setTermsImage: (dataUrl) => set({ termsImage: dataUrl }),
-  setBgRemoveEnabled: (enabled) => set({ bgRemoveEnabled: enabled }),
-  setAiModelEnabled: (enabled) => set({ aiModelEnabled: enabled }),
-  setAiModelGender: (gender) => set({ aiModelGender: gender }),
-  clearImages: () =>
-    set({ images: [], storeIntroImage: null, termsImage: null }),
-}))
+    {
+      name: 'pagecraft-images',
+      storage: createJSONStorage(() => sessionStorage),
+    },
+  ),
+)

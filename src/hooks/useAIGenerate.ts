@@ -22,7 +22,7 @@ const LOADING_MESSAGES = [
 
 export function useAIGenerate() {
   const { product } = useProductStore()
-  const { images, aiModelEnabled, aiModelGender, addImages } = useImageStore()
+  const { images } = useImageStore()
   const {
     setGeneratedContent,
     setRenderedImageUrl,
@@ -63,32 +63,18 @@ export function useAIGenerate() {
       setGeneratedContent(result)
       setActiveTab('copy')
 
-      // AI 모델 이미지 생성
-      if (aiModelEnabled) {
-        setLoadingMessage('AI 모델 이미지를 생성하고 있습니다...')
-        try {
-          const modelResult = await api.post<{ image: string }>('/api/image/generate', {
-            productName: product.name,
-            category: product.category,
-            gender: aiModelGender,
-            images: images.map((img) => img.dataUrl),
-          })
-          if (modelResult.image) {
-            addImages([modelResult.image])
-          }
-        } catch (err) {
-          console.error('AI 모델 이미지 생성 실패:', err)
-        }
-      }
-
-      // Render PNG
+      // Render PNG — useImageStore에서 최신 이미지 목록 가져오기
+      // AI 모델 이미지는 AiModelToggle에서 독립 생성 (중복 방지)
       setIsRenderingPng(true)
       setLoadingMessage('상세페이지 이미지를 생성하고 있습니다...')
 
+      const latestImages = useImageStore.getState().images
       const pngBlob = await api.post<Blob>('/api/render', {
         data: result,
         price: product.price,
-        images: images.map((img) => img.dataUrl),
+        images: latestImages.map((img) => img.dataUrl),
+        storeIntroImage: useImageStore.getState().storeIntroImage || undefined,
+        termsImage: useImageStore.getState().termsImage || undefined,
       })
 
       if (pngBlob instanceof Blob) {
@@ -106,9 +92,6 @@ export function useAIGenerate() {
   }, [
     images,
     product,
-    aiModelEnabled,
-    aiModelGender,
-    addImages,
     setGeneratedContent,
     setRenderedImageUrl,
     setIsGenerating,

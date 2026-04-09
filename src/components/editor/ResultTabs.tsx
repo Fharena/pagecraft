@@ -7,10 +7,10 @@ import TagPanel from './TagPanel'
 import ExportPanel from './ExportPanel'
 
 const TABS = [
-  { key: 'copy' as const, label: '카피' },
-  { key: 'title' as const, label: '상품명' },
-  { key: 'tags' as const, label: '태그' },
-  { key: 'export' as const, label: '내보내기' },
+  { key: 'copy' as const, label: '📄 텍스트' },
+  { key: 'title' as const, label: '✨ 상품명' },
+  { key: 'tags' as const, label: '🏷 태그' },
+  { key: 'export' as const, label: '⬇ 내보내기' },
 ]
 
 export default function ResultTabs() {

@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { persist, createJSONStorage } from 'zustand/middleware'
 import type { Product } from '@/types/product'
 
 interface ProductState {
@@ -17,11 +18,19 @@ const defaultProduct: Product = {
   features: [],
 }
 
-export const useProductStore = create<ProductState>((set) => ({
-  product: { ...defaultProduct },
-  setProduct: (partial) =>
-    set((state) => ({
-      product: { ...state.product, ...partial },
-    })),
-  resetProduct: () => set({ product: { ...defaultProduct } }),
-}))
+export const useProductStore = create<ProductState>()(
+  persist(
+    (set) => ({
+      product: { ...defaultProduct },
+      setProduct: (partial) =>
+        set((state) => ({
+          product: { ...state.product, ...partial },
+        })),
+      resetProduct: () => set({ product: { ...defaultProduct } }),
+    }),
+    {
+      name: 'pagecraft-product',
+      storage: createJSONStorage(() => sessionStorage),
+    },
+  ),
+)
