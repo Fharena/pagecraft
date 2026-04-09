@@ -21,7 +21,7 @@
 ```bash
 git clone <repo-url>
 cd pagecraft
-pnpm install
+npm install
 ```
 
 ### 2. 환경 변수
@@ -37,7 +37,7 @@ cp .env.example .env.local
 ### 3. 실행
 
 ```bash
-pnpm dev
+npm run dev
 # http://localhost:3000
 ```
 

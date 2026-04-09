@@ -10,21 +10,21 @@
 ### 요구사항
 
 - Node.js 20+
-- pnpm (권장) 또는 npm
+- npm
 - Supabase 프로젝트 (DB + Storage + Auth)
 
 ### 설치 & 실행
 
 ```bash
 # 의존성 설치
-pnpm install
+npm install
 
 # 환경 변수 설정
 cp .env.example .env.local
 # .env.local 파일에 API 키 입력 (아래 환경 변수 섹션 참고)
 
 # 개발 서버 실행
-pnpm dev
+npm run dev
 
 # http://localhost:3000 에서 확인
 ```
@@ -200,11 +200,11 @@ pagecraft/
 ## 스크립트
 
 ```bash
-pnpm dev          # 개발 서버 (http://localhost:3000)
-pnpm build        # 프로덕션 빌드
-pnpm start        # 프로덕션 서버
-pnpm lint         # ESLint
-pnpm type-check   # TypeScript 타입 체크
+npm run dev          # 개발 서버 (http://localhost:3000)
+npm run build        # 프로덕션 빌드
+npm run start        # 프로덕션 서버
+npm run lint         # ESLint
+npm run type-check   # TypeScript 타입 체크
 ```
 
 ---
