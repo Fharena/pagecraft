@@ -6,6 +6,7 @@ import ProductForm from '@/components/layout/ProductForm'
 import ImageUploader from '@/components/image/ImageUploader'
 import ImageGrid from '@/components/image/ImageGrid'
 import SingleImageUpload from '@/components/image/SingleImageUpload'
+import BgRemovalToggle from '@/components/image/BgRemovalToggle'
 import ResultTabs from '@/components/editor/ResultTabs'
 import Button from '@/components/ui/Button'
 import { useProductStore } from '@/stores/productStore'
@@ -78,6 +79,9 @@ export default function ProductNewPage() {
             <ImageUploader />
             <div className="mt-3">
               <ImageGrid />
+            </div>
+            <div className="mt-3">
+              <BgRemovalToggle />
             </div>
           </section>
 
