@@ -43,6 +43,14 @@ public/fonts/*.ttf
 public/fonts/*.otf
 !public/fonts/.gitkeep
 
-# misc
+# claude code
 AGENTS.md
 CLAUDE.md
+.claude/
+
+# misc
+*.log
+*.pid
+*.seed
+*.pid.lock
+.cache/
