@@ -269,11 +269,13 @@ export async function renderDetailPage(req: RenderRequest): Promise<Buffer> {
   }
 
   // 나머지 이미지 순서대로 전부 렌더링 (index 1부터)
+  // 원본 비율 유지 — 가로 W에 맞추고 세로는 비율대로
   for (let i = 1; i < loadedImages.length; i++) {
     const img = loadedImages[i]
     if (!img) continue
-    drawImageCover(ctx, img, 0, y, W, 600)
-    y += 600
+    const imgH = Math.round((W / img.width) * img.height)
+    ctx.drawImage(img, 0, y, W, imgH)
+    y += imgH
 
     // 대응하는 설명이 있으면 표시
     const descIdx = i
@@ -378,9 +380,12 @@ function calculateHeight(
   h += 270 // selling points
   if (data.description) h += 180 // story
 
-  // 나머지 이미지 (index 1~)
+  // 나머지 이미지 (index 1~) — 원본 비율 높이 + 설명 140
   for (let i = 1; i < images.length; i++) {
-    if (images[i]) h += 740 // image 600 + desc 140
+    if (images[i]) {
+      const imgH = Math.round((W / images[i]!.width) * images[i]!.height)
+      h += imgH + 140
+    }
   }
 
   if (data.specs?.length) h += 60 + data.specs.length * 36 + 40
