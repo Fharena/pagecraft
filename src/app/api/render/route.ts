@@ -15,6 +15,8 @@ export async function POST(req: Request) {
       )
     }
 
+    console.log(`[render] 이미지 ${body.images?.length || 0}장, storeIntro: ${!!body.storeIntroImage}, terms: ${!!body.termsImage}`)
+
     const pngBuffer = await renderDetailPage(body)
 
     return new Response(new Uint8Array(pngBuffer), {

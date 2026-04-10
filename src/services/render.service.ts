@@ -229,12 +229,6 @@ export async function renderDetailPage(req: RenderRequest): Promise<Buffer> {
   }
   y += 190
 
-  // Divider image (#4)
-  if (loadedImages[3]) {
-    drawImageCover(ctx, loadedImages[3], 0, y, W, 600)
-    y += 600
-  }
-
   // Selling points (3 columns)
   ctx.fillStyle = config.colors.bg
   ctx.fillRect(0, y, W, 270)
@@ -274,15 +268,15 @@ export async function renderDetailPage(req: RenderRequest): Promise<Buffer> {
     y += 180
   }
 
-  // Image + description pairs (images 5-10)
-  for (let i = 4; i < Math.min(loadedImages.length, 10); i++) {
+  // 나머지 이미지 순서대로 전부 렌더링 (index 1부터)
+  for (let i = 1; i < loadedImages.length; i++) {
     const img = loadedImages[i]
     if (!img) continue
-    const imgH = 600
-    drawImageCover(ctx, img, 0, y, W, imgH)
-    y += imgH
+    drawImageCover(ctx, img, 0, y, W, 600)
+    y += 600
 
-    const descIdx = i - 3
+    // 대응하는 설명이 있으면 표시
+    const descIdx = i
     if (descParagraphs[descIdx]) {
       ctx.fillStyle = config.colors.ivory
       ctx.fillRect(0, y, W, 140)
@@ -297,15 +291,6 @@ export async function renderDetailPage(req: RenderRequest): Promise<Buffer> {
       }
       y += 140
     }
-  }
-
-  // Color variation (images 1 & 2 side by side)
-  if (loadedImages[1] && loadedImages[2]) {
-    const halfW = W / 2
-    const pairH = halfW
-    drawImageCover(ctx, loadedImages[1], 0, y, halfW, pairH)
-    drawImageCover(ctx, loadedImages[2], halfW, y, halfW, pairH)
-    y += pairH
   }
 
   // Specs table
@@ -390,15 +375,14 @@ function calculateHeight(
   h += 110 // header
   if (images[0]) h += W // main image
   h += 190 // main copy
-  if (images[3]) h += 600 // divider image
   h += 270 // selling points
   if (data.description) h += 180 // story
 
-  for (let i = 4; i < Math.min(images.length, 10); i++) {
-    if (images[i]) h += 740 // image + desc
+  // 나머지 이미지 (index 1~)
+  for (let i = 1; i < images.length; i++) {
+    if (images[i]) h += 740 // image 600 + desc 140
   }
 
-  if (images[1] && images[2]) h += W / 2 // color pair
   if (data.specs?.length) h += 60 + data.specs.length * 36 + 40
   if (data.keywords?.length) h += 120
   h += 90 // price footer
