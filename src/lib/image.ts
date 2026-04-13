@@ -70,26 +70,24 @@ export function cropImage(
 }
 
 /**
- * AI API 전송용 — 작은 사이즈로 압축 (400px, 품질 0.5)
- * 원본 보존 필요 없이 AI가 내용만 파악하면 되는 용도
+ * 서버 전송용 이미지 리사이즈
+ * @param maxSize 최대 픽셀 (가로/세로 중 긴 쪽)
+ * @param quality JPEG 품질 (0~1)
  */
-export function compressForAI(dataUrl: string): Promise<string> {
-  const AI_MAX = 400
-  const AI_QUALITY = 0.5
-
+export function resizeForUpload(dataUrl: string, maxSize: number, quality: number): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new Image()
     img.onload = () => {
       const canvas = document.createElement('canvas')
       let { width, height } = img
 
-      if (width > AI_MAX || height > AI_MAX) {
+      if (width > maxSize || height > maxSize) {
         if (width > height) {
-          height = Math.round((height * AI_MAX) / width)
-          width = AI_MAX
+          height = Math.round((height * maxSize) / width)
+          width = maxSize
         } else {
-          width = Math.round((width * AI_MAX) / height)
-          height = AI_MAX
+          width = Math.round((width * maxSize) / height)
+          height = maxSize
         }
       }
 
@@ -97,11 +95,21 @@ export function compressForAI(dataUrl: string): Promise<string> {
       canvas.height = height
       const ctx = canvas.getContext('2d')!
       ctx.drawImage(img, 0, 0, width, height)
-      resolve(canvas.toDataURL('image/jpeg', AI_QUALITY))
+      resolve(canvas.toDataURL('image/jpeg', quality))
     }
     img.onerror = reject
     img.src = dataUrl
   })
+}
+
+/** AI 분석용 — 400px, 품질 0.5 */
+export function compressForAI(dataUrl: string) {
+  return resizeForUpload(dataUrl, 400, 0.5)
+}
+
+/** 상세페이지 렌더용 — 600px, 품질 0.7 */
+export function compressForRender(dataUrl: string) {
+  return resizeForUpload(dataUrl, 600, 0.7)
 }
 
 export function generateId(): string {

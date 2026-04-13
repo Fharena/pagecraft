@@ -5,6 +5,7 @@ import { useProductStore } from '@/stores/productStore'
 import { useImageStore } from '@/stores/imageStore'
 import { useEditorStore } from '@/stores/editorStore'
 import { api } from '@/lib/api'
+import { compressForAI, compressForRender } from '@/lib/image'
 import type {
   GeneratedContent,
   GeneratedTitle,
@@ -49,8 +50,12 @@ export function useAIGenerate() {
     }, 3000)
 
     try {
+      // AI 분석용 — 400px, 0.5 품질로 압축 (Vercel 4.5MB 제한 대응)
+      const aiImages = await Promise.all(
+        images.slice(0, 5).map((img) => compressForAI(img.dataUrl))
+      )
       const result = await api.post<GeneratedContent>('/api/ai/copy', {
-        images: images.map((img) => img.dataUrl),
+        images: aiImages,
         brand: product.brand,
         productName: product.name,
         price: product.price,
@@ -68,13 +73,23 @@ export function useAIGenerate() {
       setIsRenderingPng(true)
       setLoadingMessage('상세페이지 이미지를 생성하고 있습니다...')
 
+      // 렌더용 — 600px, 0.7 품질로 압축 (화질 유지 + Vercel 제한 대응)
       const latestImages = useImageStore.getState().images
+      const renderImages = await Promise.all(
+        latestImages.map((img) => compressForRender(img.dataUrl))
+      )
+      const storeIntroRaw = useImageStore.getState().storeIntroImage
+      const termsRaw = useImageStore.getState().termsImage
+      const [storeIntroCompressed, termsCompressed] = await Promise.all([
+        storeIntroRaw ? compressForRender(storeIntroRaw) : Promise.resolve(undefined),
+        termsRaw ? compressForRender(termsRaw) : Promise.resolve(undefined),
+      ])
       const pngBlob = await api.post<Blob>('/api/render', {
         data: result,
         price: product.price,
-        images: latestImages.map((img) => img.dataUrl),
-        storeIntroImage: useImageStore.getState().storeIntroImage || undefined,
-        termsImage: useImageStore.getState().termsImage || undefined,
+        images: renderImages,
+        storeIntroImage: storeIntroCompressed,
+        termsImage: termsCompressed,
       })
 
       if (pngBlob instanceof Blob) {
