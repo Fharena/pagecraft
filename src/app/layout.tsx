@@ -13,7 +13,17 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="ko">
+    <html lang="ko" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: `
+          (function() {
+            var saved = localStorage.getItem('pagecraft-theme');
+            if (saved === 'light' || (!saved && !window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+              document.documentElement.classList.add('light');
+            }
+          })();
+        `}} />
+      </head>
       <body className="bg-bg text-text antialiased">
         {children}
         <ToastContainer />
