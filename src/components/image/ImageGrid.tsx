@@ -63,7 +63,7 @@ export default function ImageGrid() {
 
             {/* Crop button */}
             <button
-              className="absolute bottom-1 right-7 bg-black/60 text-white text-[10px] w-5 h-5 rounded flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer hover:bg-black/80"
+              className="absolute bottom-[3px] right-[3px] bg-black/60 text-white text-[10px] w-[18px] h-[18px] rounded flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer hover:bg-black/80"
               onClick={(e) => {
                 e.stopPropagation()
                 setCropIdx(idx)
@@ -75,7 +75,7 @@ export default function ImageGrid() {
 
             {/* Delete button */}
             <button
-              className="absolute top-1 right-1 bg-red/80 text-white text-[10px] w-5 h-5 rounded flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer hover:bg-red"
+              className="absolute top-[3px] right-[3px] bg-[rgba(0,0,0,0.75)] text-white text-[10px] w-[18px] h-[18px] rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer hover:bg-black"
               onClick={(e) => {
                 e.stopPropagation()
                 removeImage(img.id)

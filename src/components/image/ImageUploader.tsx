@@ -23,9 +23,10 @@ export default function ImageUploader() {
         onChange={(e) => e.target.files && handleFiles(e.target.files)}
       />
       <div className="text-text3">
-        <p className="text-[11px]">📷</p>
-        <p className="text-[11px] font-medium mt-1">클릭 또는 드래그하여 업로드</p>
-        <p className="text-[11px] text-text3 mt-0.5">최대 10장 · 자동 압축</p>
+        <p className="text-2xl mb-2">📷</p>
+        <p className="text-[11px] font-medium">사진 업로드</p>
+        <p className="text-[11px] text-text3 mt-0.5">클릭하거나 드래그</p>
+        <p className="text-[11px] text-text3">JPG · PNG · 최대 10장</p>
       </div>
     </div>
   )

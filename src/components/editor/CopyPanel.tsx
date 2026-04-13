@@ -17,7 +17,7 @@ function CopyButton({ text, label }: { text: string; label: string }) {
       className={`px-[10px] py-[3px] rounded-[5px] text-[11px] cursor-pointer transition-all duration-150 border ${
         copied
           ? 'border-green text-green'
-          : 'border-border text-text3 hover:border-border2 hover:text-text2'
+          : 'bg-surface3 border-border text-text3 hover:border-border2 hover:text-text2'
       }`}
       onClick={copy}
       title={`${label} 복사`}
@@ -46,11 +46,8 @@ export default function CopyPanel() {
 
   if (!generatedContent) {
     return (
-      <div className="text-center text-text3 py-16">
-        <p className="text-[13px]">생성된 콘텐츠가 없습니다</p>
-        <p className="text-[11px] mt-1">
-          좌측에서 상품 정보를 입력하고 생성 버튼을 누르세요
-        </p>
+      <div className="text-center text-text3" style={{ padding: '60px 16px', fontSize: 13, lineHeight: 1.8 }}>
+        생성 후 각 항목을<br />바로 복사할 수 있습니다
       </div>
     )
   }

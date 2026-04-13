@@ -58,7 +58,7 @@ export default function ExportPanel() {
         onClick={downloadPng}
         disabled={!renderedImageUrl}
       >
-        <div className="w-10 h-10 rounded-lg bg-surface3 flex items-center justify-center text-lg">🖼</div>
+        <div className="w-9 h-9 rounded-lg bg-surface3 flex items-center justify-center text-lg">🖼</div>
         <div>
           <p className="text-[13px] font-semibold text-text">이미지 저장 (PNG)</p>
           <p className="text-[11px] text-text3">상세페이지 이미지 다운로드</p>
@@ -70,7 +70,7 @@ export default function ExportPanel() {
         onClick={copyAll}
         disabled={!generatedContent}
       >
-        <div className="w-10 h-10 rounded-lg bg-surface3 flex items-center justify-center text-lg">📋</div>
+        <div className="w-9 h-9 rounded-lg bg-surface3 flex items-center justify-center text-lg">📋</div>
         <div>
           <p className="text-[13px] font-semibold text-text">전체 텍스트 복사</p>
           <p className="text-[11px] text-text3">모든 내용 클립보드 복사</p>
