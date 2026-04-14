@@ -51,7 +51,7 @@ export default function ProductNewPage() {
     showToast('이미지 생성 중...')
     const html2canvas = (await import('html2canvas')).default
     const canvas = await html2canvas(previewRef.current, {
-      scale: 1,
+      scale: 2,
       useCORS: true,
       backgroundColor: '#ffffff',
       width: 800,
