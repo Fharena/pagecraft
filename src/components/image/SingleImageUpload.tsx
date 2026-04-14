@@ -1,7 +1,15 @@
 'use client'
 
 import { useRef } from 'react'
-import { compressImage } from '@/lib/image'
+/** 원본 File → dataURL 변환 (압축 없음) */
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result as string)
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+}
 
 interface SingleImageUploadProps {
   label: string
@@ -22,8 +30,8 @@ export default function SingleImageUpload({
 
   const handleFile = async (file: File) => {
     if (!file.type.startsWith('image/')) return
-    const compressed = await compressImage(file)
-    onImageChange(compressed)
+    const dataUrl = await fileToDataUrl(file)
+    onImageChange(dataUrl)
   }
 
   return (

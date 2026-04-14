@@ -2,7 +2,16 @@
 
 import { useCallback } from 'react'
 import { useImageStore } from '@/stores/imageStore'
-import { compressImage } from '@/lib/image'
+
+/** 원본 File → dataURL 변환 (압축 없음, 서버에 안 보내니까) */
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result as string)
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+}
 
 export function useImageUpload() {
   const { addImages } = useImageStore()
@@ -14,8 +23,8 @@ export function useImageUpload() {
       )
       if (fileArray.length === 0) return
 
-      const compressed = await Promise.all(fileArray.map(compressImage))
-      addImages(compressed)
+      const dataUrls = await Promise.all(fileArray.map(fileToDataUrl))
+      addImages(dataUrls)
     },
     [addImages],
   )
