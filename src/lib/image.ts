@@ -107,6 +107,11 @@ export function compressForAI(dataUrl: string) {
   return resizeForUpload(dataUrl, 400, 0.5)
 }
 
+/** 서버 렌더링 전송용 — 780px, 품질 0.75 (Vercel 4.5MB 대응) */
+export function compressForRender(dataUrl: string) {
+  return resizeForUpload(dataUrl, 780, 0.75)
+}
+
 export function generateId(): string {
   return Math.random().toString(36).substring(2, 9)
 }

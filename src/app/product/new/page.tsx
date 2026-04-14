@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useCallback } from 'react'
+import { useCallback } from 'react'
 import Header from '@/components/layout/Header'
 import StatusBar from '@/components/layout/StatusBar'
 import ProductForm from '@/components/layout/ProductForm'
@@ -34,8 +34,6 @@ export default function ProductNewPage() {
     generateError,
   } = useEditorStore()
   const { generateContent } = useAIGenerate()
-  const previewRef = useRef<HTMLDivElement>(null)
-
   const canGenerate = images.length > 0 && product.name.trim() !== ''
 
   const toggleFeature = (feature: string) => {
@@ -45,31 +43,45 @@ export default function ProductNewPage() {
     setProduct({ features })
   }
 
-  // html2canvas로 PNG 다운로드 — 서버 API 호출 없음
+  // PNG 다운로드 — 서버 렌더링으로 한글 폰트 품질 보장
   const handleDownload = useCallback(async () => {
-    if (!previewRef.current || !generatedContent) return
+    if (!generatedContent) return
     showToast('이미지 생성 중...')
-    await document.fonts.ready
-    const html2canvas = (await import('html2canvas')).default
-    const canvas = await html2canvas(previewRef.current, {
-      scale: 2,
-      useCORS: true,
-      backgroundColor: '#ffffff',
-      foreignObjectRendering: true,
-    })
-    const blob = await new Promise<Blob>((resolve) =>
-      canvas.toBlob((b) => resolve(b!), 'image/png')
+    const { compressForRender } = await import('@/lib/image')
+    const { api } = await import('@/lib/api')
+    const latestImages = useImageStore.getState().images
+    const renderImages = await Promise.all(
+      latestImages.map((img) => compressForRender(img.dataUrl))
     )
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    const safeName = (generatedContent.product_name || product.name || '상품')
-      .replace(/[/\\?%*:|"<>]/g, '')
-    a.download = `상세페이지_${safeName}.png`
-    a.click()
-    URL.revokeObjectURL(url)
-    showToast('이미지 다운로드 완료')
-  }, [generatedContent, product.name])
+    const storeIntro = useImageStore.getState().storeIntroImage
+    const terms = useImageStore.getState().termsImage
+    const [storeImg, termsImg] = await Promise.all([
+      storeIntro ? compressForRender(storeIntro) : Promise.resolve(undefined),
+      terms ? compressForRender(terms) : Promise.resolve(undefined),
+    ])
+    try {
+      const pngBlob = await api.post<Blob>('/api/render', {
+        data: generatedContent,
+        price: product.price,
+        images: renderImages,
+        storeIntroImage: storeImg,
+        termsImage: termsImg,
+      })
+      if (pngBlob instanceof Blob) {
+        const url = URL.createObjectURL(pngBlob)
+        const a = document.createElement('a')
+        a.href = url
+        const safeName = (generatedContent.product_name || product.name || '상품')
+          .replace(/[/\\?%*:|"<>]/g, '')
+        a.download = `상세페이지_${safeName}.png`
+        a.click()
+        URL.revokeObjectURL(url)
+        showToast('이미지 다운로드 완료')
+      }
+    } catch {
+      showToast('다운로드 실패 — 다시 시도해주세요')
+    }
+  }, [generatedContent, product.price, product.name])
 
   const handleCopyAll = () => {
     if (!generatedContent) return
@@ -282,7 +294,6 @@ export default function ProductNewPage() {
             {!isGenerating && generatedContent && (
               <div style={{ zoom: 0.825 }}>
                 <DetailPagePreview
-                  ref={previewRef}
                   content={generatedContent}
                   price={product.price}
                   images={images.map((img) => img.dataUrl)}
