@@ -49,6 +49,26 @@ function safeParseJSON<T>(text: string): T {
   }
 }
 
+/**
+ * Gemini API fetch with auto-retry (503 대응)
+ * 최대 3회 재시도, 간격 2초/4초
+ */
+async function geminiRequest(url: string, body: object): Promise<Response> {
+  const MAX_RETRIES = 3
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    if (res.status !== 503 || attempt === MAX_RETRIES) return res
+    // 503이면 재시도 전 대기
+    await new Promise((r) => setTimeout(r, attempt * 2000))
+  }
+  // unreachable but TS needs it
+  throw new Error('Gemini API 재시도 실패')
+}
+
 function getApiKey(): string {
   const key = process.env.GEMINI_API_KEY
   if (!key) throw new Error('GEMINI_API_KEY 환경 변수가 설정되지 않았습니다.')
@@ -153,13 +173,9 @@ export async function generateContent(
     },
   }
 
-  const res = await fetch(
+  const res = await geminiRequest(
     `${GEMINI_BASE}/${getTextModel()}:generateContent?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    },
+    body,
   )
 
   if (!res.ok) {
@@ -188,13 +204,9 @@ export async function generateTitles(
     },
   }
 
-  const res = await fetch(
+  const res = await geminiRequest(
     `${GEMINI_BASE}/${getTextModel()}:generateContent?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    },
+    body,
   )
 
   if (!res.ok) {
@@ -221,13 +233,9 @@ export async function generateTags(req: AITagRequest): Promise<string[]> {
     },
   }
 
-  const res = await fetch(
+  const res = await geminiRequest(
     `${GEMINI_BASE}/${getTextModel()}:generateContent?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    },
+    body,
   )
 
   if (!res.ok) {
@@ -331,13 +339,9 @@ Must look like a real photograph, not AI-generated.`
     },
   }
 
-  const res = await fetch(
+  const res = await geminiRequest(
     `${GEMINI_BASE}/${getImageModel()}:generateContent?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    },
+    body,
   )
 
   if (!res.ok) {
