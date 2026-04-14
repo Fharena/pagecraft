@@ -298,7 +298,7 @@ export async function renderDetailPage(req: RenderRequest): Promise<Buffer> {
   // Specs table
   const specs = data.specs || []
   if (specs.length > 0) {
-    const tableH = 60 + specs.length * 36 + 40
+    const tableH = 60 + specs.length * 50 + 40
     ctx.fillStyle = config.colors.bg
     ctx.fillRect(0, y, W, tableH)
     ctx.fillStyle = config.colors.gold
@@ -310,16 +310,19 @@ export async function renderDetailPage(req: RenderRequest): Promise<Buffer> {
 
     let specY = y + 80
     for (const spec of specs) {
-      ctx.fillStyle = '#9998a8'
       ctx.font = `14px KoreanRegular, sans-serif`
+      ctx.fillStyle = '#9998a8'
       ctx.textAlign = 'right'
-      ctx.fillText(spec.key, W / 2 - 20, specY)
+      ctx.fillText(spec.key, 220, specY)
       ctx.fillStyle = config.colors.black
       ctx.textAlign = 'left'
-      ctx.fillText(spec.value, W / 2 + 20, specY)
-      specY += 36
+      const valueLines = wrapText(ctx, spec.value, W - 300)
+      for (let li = 0; li < valueLines.length; li++) {
+        ctx.fillText(valueLines[li], 240, specY + li * 22)
+      }
+      specY += Math.max(36, valueLines.length * 22 + 14)
     }
-    y += tableH
+    y += specY - (y + 80) + 80 + 40
   }
 
   // Keywords
@@ -388,7 +391,7 @@ function calculateHeight(
     }
   }
 
-  if (data.specs?.length) h += 60 + data.specs.length * 36 + 40
+  if (data.specs?.length) h += 60 + data.specs.length * 50 + 40
   if (data.keywords?.length) h += 120
   h += 90 // price footer
   if (terms) h += Math.round((W / terms.width) * terms.height)

@@ -250,10 +250,8 @@ const DetailPagePreview = forwardRef<HTMLDivElement, DetailPagePreviewProps>(
                 key={i}
                 style={{
                   display: 'flex',
-                  justifyContent: 'center',
-                  gap: 40,
-                  height: 36,
-                  alignItems: 'center',
+                  padding: '8px 60px',
+                  alignItems: 'flex-start',
                 }}
               >
                 <span
@@ -261,7 +259,9 @@ const DetailPagePreview = forwardRef<HTMLDivElement, DetailPagePreviewProps>(
                     fontSize: 14,
                     color: '#9998a8',
                     textAlign: 'right',
-                    width: 340,
+                    width: 160,
+                    flexShrink: 0,
+                    paddingRight: 20,
                   }}
                 >
                   {spec.key}
@@ -271,7 +271,9 @@ const DetailPagePreview = forwardRef<HTMLDivElement, DetailPagePreviewProps>(
                     fontSize: 14,
                     color: '#0f0f0f',
                     textAlign: 'left',
-                    width: 340,
+                    flex: 1,
+                    lineHeight: '22px',
+                    wordBreak: 'keep-all',
                   }}
                 >
                   {spec.value}
