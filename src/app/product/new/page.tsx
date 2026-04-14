@@ -49,28 +49,23 @@ export default function ProductNewPage() {
   const handleDownload = useCallback(async () => {
     if (!previewRef.current || !generatedContent) return
     showToast('이미지 생성 중...')
-    // 폰트 로딩 대기
     await document.fonts.ready
-    const html2canvas = (await import('html2canvas')).default
-    const canvas = await html2canvas(previewRef.current, {
-      scale: 2,
-      useCORS: true,
-      backgroundColor: '#ffffff',
-      width: 800,
-      windowWidth: 800,
+    const domtoimage = (await import('dom-to-image-more')).default
+    const blob = await domtoimage.toBlob(previewRef.current, {
+      width: previewRef.current.scrollWidth * 2,
+      height: previewRef.current.scrollHeight * 2,
+      style: { transform: 'scale(2)', transformOrigin: 'top left' },
+      bgcolor: '#ffffff',
     })
-    canvas.toBlob((blob) => {
-      if (!blob) return
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      const safeName = (generatedContent.product_name || product.name || '상품')
-        .replace(/[/\\?%*:|"<>]/g, '')
-      a.download = `상세페이지_${safeName}.png`
-      a.click()
-      URL.revokeObjectURL(url)
-      showToast('이미지 다운로드 완료')
-    }, 'image/png')
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    const safeName = (generatedContent.product_name || product.name || '상품')
+      .replace(/[/\\?%*:|"<>]/g, '')
+    a.download = `상세페이지_${safeName}.png`
+    a.click()
+    URL.revokeObjectURL(url)
+    showToast('이미지 다운로드 완료')
   }, [generatedContent, product.name])
 
   const handleCopyAll = () => {
