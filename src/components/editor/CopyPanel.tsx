@@ -170,13 +170,16 @@ function SpecBlock({ specs, onUpdate }: { specs: { key: string; value: string }[
               </div>
             ) : (
               <div className="flex-1 flex items-start">
-                <span
-                  style={{ fontSize: 12, color: 'var(--text2)', flex: 1, cursor: 'pointer', paddingTop: 1 }}
-                  onClick={() => startEdit(i)}
-                  title="클릭하여 수정"
-                >
+                <span style={{ fontSize: 12, color: 'var(--text2)', flex: 1, paddingTop: 1 }}>
                   {spec.value}
                 </span>
+                <button
+                  onClick={() => startEdit(i)}
+                  title="수정"
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, padding: '0 4px', color: 'var(--text3)', flexShrink: 0 }}
+                >
+                  ✎
+                </button>
                 <InlineCopy text={spec.value} />
               </div>
             )}
