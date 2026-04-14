@@ -150,48 +150,9 @@ export default function CopyPanel() {
       <EditableBlock title="키워드" text={keywords.join(', ')} onSave={(v) => update('keywords', v)} />
       <EditableBlock title="주의사항" text={caution} onSave={(v) => update('caution', v)} />
 
-      {/* 수정 후 재렌더링 버튼 */}
-      <button
-        className="w-full mt-3 py-[9px] rounded-[8px] text-[12px] font-bold border border-accent text-accent hover:bg-accent-dim transition-all duration-150 cursor-pointer"
-        onClick={() => {
-          // 재렌더링은 generateContent를 다시 호출하지 않고
-          // 수정된 content로 render API만 재호출
-          import('@/lib/api').then(({ api }) =>
-            import('@/stores/imageStore').then(({ useImageStore }) =>
-              import('@/lib/image').then(({ compressForRender }) => {
-                const { setIsRenderingPng, setRenderedImageUrl, setLoadingMessage } = useEditorStore.getState()
-                const { images, storeIntroImage, termsImage } = useImageStore.getState()
-                setIsRenderingPng(true)
-                setLoadingMessage('상세페이지를 다시 렌더링합니다...')
-                Promise.all(images.map(img => compressForRender(img.dataUrl)))
-                  .then(renderImages =>
-                    Promise.all([
-                      storeIntroImage ? compressForRender(storeIntroImage) : undefined,
-                      termsImage ? compressForRender(termsImage) : undefined,
-                    ]).then(([storeImg, termsImg]) =>
-                      api.post<Blob>('/api/render', {
-                        data: generatedContent,
-                        price: '',
-                        images: renderImages,
-                        storeIntroImage: storeImg,
-                        termsImage: termsImg,
-                      })
-                    )
-                  )
-                  .then(blob => {
-                    if (blob instanceof Blob) setRenderedImageUrl(URL.createObjectURL(blob))
-                  })
-                  .finally(() => {
-                    setIsRenderingPng(false)
-                    setLoadingMessage('')
-                  })
-              })
-            )
-          )
-        }}
-      >
-        🔄 수정사항 반영 (재렌더링)
-      </button>
+      <p className="text-[10px] text-text3 text-center mt-3 py-2">
+        수정 내용은 미리보기에 실시간 반영됩니다
+      </p>
     </div>
   )
 }

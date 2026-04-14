@@ -1,5 +1,6 @@
 'use client'
 
+import { useRef, useCallback } from 'react'
 import Header from '@/components/layout/Header'
 import StatusBar from '@/components/layout/StatusBar'
 import ProductForm from '@/components/layout/ProductForm'
@@ -9,6 +10,7 @@ import SingleImageUpload from '@/components/image/SingleImageUpload'
 import BgRemovalToggle from '@/components/image/BgRemovalToggle'
 import AiModelToggle from '@/components/image/AiModelToggle'
 import ResultTabs from '@/components/editor/ResultTabs'
+import DetailPagePreview from '@/components/editor/DetailPagePreview'
 import Button from '@/components/ui/Button'
 import { useProductStore } from '@/stores/productStore'
 import { useImageStore } from '@/stores/imageStore'
@@ -27,16 +29,14 @@ export default function ProductNewPage() {
     useImageStore()
   const {
     isGenerating,
-    isRenderingPng,
-    renderedImageUrl,
     generatedContent,
     loadingMessage,
     generateError,
   } = useEditorStore()
   const { generateContent } = useAIGenerate()
+  const previewRef = useRef<HTMLDivElement>(null)
 
   const canGenerate = images.length > 0 && product.name.trim() !== ''
-  const isLoading = isGenerating || isRenderingPng
 
   const toggleFeature = (feature: string) => {
     const features = product.features.includes(feature)
@@ -45,16 +45,31 @@ export default function ProductNewPage() {
     setProduct({ features })
   }
 
-  const handleDownload = () => {
-    if (!renderedImageUrl) return
-    const a = document.createElement('a')
-    a.href = renderedImageUrl
-    const safeName = (generatedContent?.product_name || product.name || '상품')
-      .replace(/[/\\?%*:|"<>]/g, '')
-    a.download = `상세페이지_${safeName}.png`
-    a.click()
-    showToast('이미지 다운로드 시작')
-  }
+  // html2canvas로 PNG 다운로드 — 서버 API 호출 없음
+  const handleDownload = useCallback(async () => {
+    if (!previewRef.current || !generatedContent) return
+    showToast('이미지 생성 중...')
+    const html2canvas = (await import('html2canvas')).default
+    const canvas = await html2canvas(previewRef.current, {
+      scale: 1,
+      useCORS: true,
+      backgroundColor: '#ffffff',
+      width: 800,
+      windowWidth: 800,
+    })
+    canvas.toBlob((blob) => {
+      if (!blob) return
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      const safeName = (generatedContent.product_name || product.name || '상품')
+        .replace(/[/\\?%*:|"<>]/g, '')
+      a.download = `상세페이지_${safeName}.png`
+      a.click()
+      URL.revokeObjectURL(url)
+      showToast('이미지 다운로드 완료')
+    }, 'image/png')
+  }, [generatedContent, product.name])
 
   const handleCopyAll = () => {
     if (!generatedContent) return
@@ -167,11 +182,11 @@ export default function ProductNewPage() {
             <Button
               className="w-full"
               size="lg"
-              loading={isLoading}
+              loading={isGenerating}
               disabled={!canGenerate}
               onClick={generateContent}
             >
-              {isLoading ? '생성 중...' : '✦ AI 상세페이지 생성'}
+              {isGenerating ? '생성 중...' : '✦ AI 상세페이지 생성'}
             </Button>
           </div>
         </aside>
@@ -196,7 +211,6 @@ export default function ProductNewPage() {
                   onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--accent2)' }}
                   onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--accent)' }}
                   onClick={handleDownload}
-                  disabled={!renderedImageUrl}
                 >
                   ⬇ 이미지 저장
                 </button>
@@ -219,7 +233,7 @@ export default function ProductNewPage() {
             </div>
 
             {/* Loading state */}
-            {isLoading && (
+            {isGenerating && (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '80px 30px', textAlign: 'center' }}>
                 <div style={{ width: 64, height: 64, position: 'relative', marginBottom: 24 }}>
                   <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-accent animate-[spin_1s_linear_infinite]" />
@@ -231,8 +245,8 @@ export default function ProductNewPage() {
               </div>
             )}
 
-            {/* Error state — 재시도 버튼 */}
-            {!isLoading && generateError && (
+            {/* Error state */}
+            {!isGenerating && generateError && (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 30px', textAlign: 'center' }}>
                 <div style={{ width: 72, height: 72, background: 'rgba(248,113,113,0.08)', borderRadius: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 30, marginBottom: 20, border: '1px solid rgba(248,113,113,0.2)' }}>
                   ⚠
@@ -252,7 +266,7 @@ export default function ProductNewPage() {
             )}
 
             {/* Empty state */}
-            {!isLoading && !generateError && !renderedImageUrl && (
+            {!isGenerating && !generateError && !generatedContent && (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '80px 30px', textAlign: 'center' }}>
                 <div style={{ width: 72, height: 72, background: 'var(--surface2)', borderRadius: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 30, marginBottom: 20, border: '1px solid var(--border)' }}>
                   🛍
@@ -264,14 +278,19 @@ export default function ProductNewPage() {
               </div>
             )}
 
-            {/* Result preview */}
-            {!isLoading && renderedImageUrl && (
-              <div style={{ padding: 20 }}>
-                <img
-                  src={renderedImageUrl}
-                  alt="상세페이지 미리보기"
-                  style={{ width: '100%', borderRadius: 8, display: 'block' }}
-                />
+            {/* 실시간 HTML 미리보기 — generatedContent 변경 시 자동 리렌더링 */}
+            {!isGenerating && generatedContent && (
+              <div style={{ padding: 0, overflow: 'hidden' }}>
+                <div style={{ transform: 'scale(0.825)', transformOrigin: 'top left', width: 800 }}>
+                  <DetailPagePreview
+                    ref={previewRef}
+                    content={generatedContent}
+                    price={product.price}
+                    images={images.map((img) => img.dataUrl)}
+                    storeIntroImage={storeIntroImage}
+                    termsImage={termsImage}
+                  />
+                </div>
               </div>
             )}
           </div>

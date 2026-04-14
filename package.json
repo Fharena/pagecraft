@@ -12,6 +12,7 @@
   "dependencies": {
     "@imgly/background-removal": "^1.7.0",
     "@napi-rs/canvas": "^0.1.44",
+    "html2canvas": "^1.4.1",
     "idb": "^8.0.3",
     "next": "16.2.3",
     "react": "19.2.4",

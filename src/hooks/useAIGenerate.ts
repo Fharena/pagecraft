@@ -5,7 +5,7 @@ import { useProductStore } from '@/stores/productStore'
 import { useImageStore } from '@/stores/imageStore'
 import { useEditorStore } from '@/stores/editorStore'
 import { api } from '@/lib/api'
-import { compressForAI, compressForRender } from '@/lib/image'
+import { compressForAI } from '@/lib/image'
 import type {
   GeneratedContent,
   GeneratedTitle,
@@ -26,9 +26,7 @@ export function useAIGenerate() {
   const { images } = useImageStore()
   const {
     setGeneratedContent,
-    setRenderedImageUrl,
     setIsGenerating,
-    setIsRenderingPng,
     setIsGeneratingTitles,
     setIsGeneratingTags,
     setGeneratedTitles,
@@ -38,6 +36,7 @@ export function useAIGenerate() {
     setActiveTab,
   } = useEditorStore()
 
+  // AI 텍스트 생성만 — 렌더링은 클라이언트 HTML로 즉시 표시
   const generateContent = useCallback(async () => {
     if (images.length === 0) return
 
@@ -52,7 +51,6 @@ export function useAIGenerate() {
     }, 3000)
 
     try {
-      // AI 분석용 — 400px, 0.5 품질로 압축 (Vercel 4.5MB 제한 대응)
       const aiImages = await Promise.all(
         images.slice(0, 5).map((img) => compressForAI(img.dataUrl))
       )
@@ -69,35 +67,6 @@ export function useAIGenerate() {
 
       setGeneratedContent(result)
       setActiveTab('copy')
-
-      // Render PNG — useImageStore에서 최신 이미지 목록 가져오기
-      // AI 모델 이미지는 AiModelToggle에서 독립 생성 (중복 방지)
-      setIsRenderingPng(true)
-      setLoadingMessage('상세페이지 이미지를 생성하고 있습니다...')
-
-      // 렌더용 — 800px/0.8 유지 (Vercel 4.5MB 제한 내 최대 화질)
-      const latestImages = useImageStore.getState().images
-      const renderImages = await Promise.all(
-        latestImages.map((img) => compressForRender(img.dataUrl))
-      )
-      const storeIntroRaw = useImageStore.getState().storeIntroImage
-      const termsRaw = useImageStore.getState().termsImage
-      const [storeIntroImg, termsImg] = await Promise.all([
-        storeIntroRaw ? compressForRender(storeIntroRaw) : Promise.resolve(undefined),
-        termsRaw ? compressForRender(termsRaw) : Promise.resolve(undefined),
-      ])
-      const pngBlob = await api.post<Blob>('/api/render', {
-        data: result,
-        price: product.price,
-        images: renderImages,
-        storeIntroImage: storeIntroImg,
-        termsImage: termsImg,
-      })
-
-      if (pngBlob instanceof Blob) {
-        const url = URL.createObjectURL(pngBlob)
-        setRenderedImageUrl(url)
-      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'AI 생성에 실패했습니다.'
       setGenerateError(msg)
@@ -105,16 +74,13 @@ export function useAIGenerate() {
     } finally {
       clearInterval(interval)
       setIsGenerating(false)
-      setIsRenderingPng(false)
       setLoadingMessage('')
     }
   }, [
     images,
     product,
     setGeneratedContent,
-    setRenderedImageUrl,
     setIsGenerating,
-    setIsRenderingPng,
     setLoadingMessage,
     setGenerateError,
     setActiveTab,
