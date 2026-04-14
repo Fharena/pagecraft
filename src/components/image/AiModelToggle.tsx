@@ -36,7 +36,7 @@ export default function AiModelToggle() {
         images: smallImages,
       })
       if (result.image) {
-        addImages([result.image])
+        addImages([result.image], true)
       }
     } catch (err) {
       if (err instanceof ApiError) {

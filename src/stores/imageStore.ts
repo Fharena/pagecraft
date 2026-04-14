@@ -27,7 +27,7 @@ interface ImageState {
   aiModelGender: 'male' | 'female'
   _hydrated: boolean
 
-  addImages: (dataUrls: string[]) => void
+  addImages: (dataUrls: string[], prepend?: boolean) => void
   removeImage: (id: string) => void
   reorderImages: (fromIndex: number, toIndex: number) => void
   updateImage: (id: string, partial: Partial<ProductImage>) => void
@@ -55,17 +55,18 @@ export const useImageStore = create<ImageState>()((set, get) => ({
   aiModelGender: 'female',
   _hydrated: false,
 
-  addImages: (dataUrls) => {
+  addImages: (dataUrls, prepend) => {
     set((state) => {
-      const newImages = [
-        ...state.images,
-        ...dataUrls.map((dataUrl, i) => ({
-          id: generateId(),
-          dataUrl,
-          bgRemoved: false,
-          order: state.images.length + i,
-        })),
-      ]
+      const incoming = dataUrls.map((dataUrl) => ({
+        id: generateId(),
+        dataUrl,
+        bgRemoved: false,
+        order: 0,
+      }))
+      const merged = prepend
+        ? [...incoming, ...state.images]
+        : [...state.images, ...incoming]
+      const newImages = merged.map((img, i) => ({ ...img, order: i }))
       persistImages(newImages)
       return { images: newImages }
     })
