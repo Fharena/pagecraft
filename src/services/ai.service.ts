@@ -9,6 +9,32 @@ import type {
 
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models'
 
+/**
+ * Gemini가 가끔 깨진 JSON을 반환함 — 코드블록, trailing comma, 제어문자 등 정리
+ */
+function safeParseJSON<T>(text: string): T {
+  let cleaned = text.trim()
+  // ```json ... ``` 코드블록 제거
+  cleaned = cleaned.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/, '')
+  // 제어 문자 제거 (탭/줄바꿈 제외)
+  cleaned = cleaned.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, '')
+  // trailing comma 제거 (,] 또는 ,})
+  cleaned = cleaned.replace(/,\s*([}\]])/g, '$1')
+
+  try {
+    return JSON.parse(cleaned) as T
+  } catch {
+    // JSON 시작/끝 위치를 찾아서 재시도
+    const startIdx = cleaned.search(/[\[{]/)
+    const endIdx = Math.max(cleaned.lastIndexOf(']'), cleaned.lastIndexOf('}'))
+    if (startIdx >= 0 && endIdx > startIdx) {
+      const extracted = cleaned.substring(startIdx, endIdx + 1)
+      return JSON.parse(extracted) as T
+    }
+    throw new Error(`JSON 파싱 실패: ${text.substring(0, 200)}`)
+  }
+}
+
 function getApiKey(): string {
   const key = process.env.GEMINI_API_KEY
   if (!key) throw new Error('GEMINI_API_KEY 환경 변수가 설정되지 않았습니다.')
@@ -131,7 +157,7 @@ export async function generateContent(
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text
   if (!text) throw new Error('Gemini 응답에서 텍스트를 찾을 수 없습니다.')
 
-  return JSON.parse(text) as GeneratedContent
+  return safeParseJSON(text) as GeneratedContent
 }
 
 export async function generateTitles(
@@ -166,7 +192,7 @@ export async function generateTitles(
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text
   if (!text) throw new Error('Gemini 응답에서 텍스트를 찾을 수 없습니다.')
 
-  return JSON.parse(text) as GeneratedTitle[]
+  return safeParseJSON(text) as GeneratedTitle[]
 }
 
 export async function generateTags(req: AITagRequest): Promise<string[]> {
@@ -199,7 +225,7 @@ export async function generateTags(req: AITagRequest): Promise<string[]> {
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text
   if (!text) throw new Error('Gemini 응답에서 텍스트를 찾을 수 없습니다.')
 
-  return JSON.parse(text) as string[]
+  return safeParseJSON(text) as string[]
 }
 
 function getCameraFocus(
