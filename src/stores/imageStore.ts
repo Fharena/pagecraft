@@ -48,8 +48,8 @@ function persistImages(images: ProductImage[]) {
 
 export const useImageStore = create<ImageState>()((set, get) => ({
   images: [],
-  storeIntroImage: loadFromLocal(LS_STORE_INTRO),
-  termsImage: loadFromLocal(LS_TERMS),
+  storeIntroImage: null,
+  termsImage: null,
   bgRemoveEnabled: false,
   aiModelEnabled: false,
   aiModelGender: 'female',
@@ -133,16 +133,19 @@ export const useImageStore = create<ImageState>()((set, get) => ({
     clearImagesFromDB().catch(() => {})
   },
 
-  // IndexedDB에서 이미지 복원
+  // IndexedDB + localStorage에서 복원
   _hydrate: async () => {
     if (get()._hydrated) return
     try {
       const images = await loadImagesFromDB()
-      if (images.length > 0) {
-        set({ images, _hydrated: true })
-      } else {
-        set({ _hydrated: true })
-      }
+      const storeIntro = loadFromLocal(LS_STORE_INTRO)
+      const terms = loadFromLocal(LS_TERMS)
+      set({
+        images: images.length > 0 ? images : [],
+        storeIntroImage: storeIntro,
+        termsImage: terms,
+        _hydrated: true,
+      })
     } catch {
       set({ _hydrated: true })
     }
