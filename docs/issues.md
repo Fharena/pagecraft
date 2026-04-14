@@ -69,50 +69,72 @@ ApiError: Request Entity Too Large — FUNCTION_PAYLOAD_TOO_LARGE
 **아키텍처 변경**
 
 ### 변경 전 — 서버 렌더링
-```
-                        ┌─────────────┐
-                    ┌──▶│   Gemini AI  │──┐
-                    │   └─────────────┘  │
-              img + 문구 요청        img or 문구 응답
-                    │                    │
-                    │                    ▼
-┌──────────┐   img + req   ┌───────────────────┐   상세페이지 PNG
-│  Client  │──────────────▶│   Vercel 서버      │──────────────▶ 표시
-│ (브라우저) │◀──────────────│  ┌──────────────┐ │
-└──────────┘   PNG 응답    │  │ canvas 렌더링 │ │
-     │                     │  │ (이미지 합성)  │ │
-     │                     │  └──────────────┘ │
-     ▼                     └───────────────────┘
-  이미지 압축 필수                서버 CPU 사용
-  (780px/0.75)               매 수정마다 2~3초
-  Vercel 4.5MB 제한에 걸림
+
+```mermaid
+flowchart TB
+  subgraph Client["🖥 Client (브라우저)"]
+    Upload["이미지 업로드"]
+    Compress["이미지 압축\n780px / 0.75"]
+    Display["PNG 표시"]
+  end
+
+  subgraph Vercel["☁ Vercel 서버"]
+    API_Copy["/api/ai/copy"]
+    API_Render["/api/render\n@napi-rs/canvas"]
+  end
+
+  subgraph Gemini["🤖 Gemini AI"]
+    AI["텍스트 생성"]
+  end
+
+  Upload --> Compress
+  Compress -->|"img + 문구 요청\n(~2MB)"| API_Copy
+  API_Copy -->|"img + 프롬프트"| AI
+  AI -->|"JSON 응답"| API_Copy
+  API_Copy -->|"content"| Compress
+  Compress -->|"img 재전송\n(~2MB)"| API_Render
+  API_Render -->|"PNG blob\n(2~3초)"| Display
+
+  style Client fill:#1a1a2e,color:#fff,stroke:#e8c97a
+  style Vercel fill:#2d1810,color:#fff,stroke:#f87171
+  style Gemini fill:#1a2e1a,color:#fff,stroke:#3ecf8e
 ```
 
+> 문제: 이미지가 Client ↔ Vercel 사이를 2번 왕복, 압축 필수, Vercel 4.5MB 제한에 걸림
+
 ### 변경 후 — 클라이언트 렌더링
+
+```mermaid
+flowchart TB
+  subgraph Client["🖥 Client (브라우저)"]
+    Upload["이미지 업로드"]
+    Store["IndexedDB\n원본 저장"]
+    Preview["React 컴포넌트\n실시간 미리보기"]
+    Download["html2canvas\nPNG 다운로드"]
+  end
+
+  subgraph Vercel["☁ Vercel 서버"]
+    API_Copy["/api/ai/copy"]
+  end
+
+  subgraph Gemini["🤖 Gemini AI"]
+    AI["텍스트 생성"]
+  end
+
+  Upload --> Store
+  Store -->|"원본 이미지\n(로컬)"| Preview
+  Store -->|"압축 img\n400px/0.5\n(~250KB)"| API_Copy
+  API_Copy -->|"프롬프트"| AI
+  AI -->|"JSON"| API_Copy
+  API_Copy -->|"content+titles+tags"| Preview
+  Preview -->|"다운로드 시에만"| Download
+
+  style Client fill:#1a1a2e,color:#fff,stroke:#3ecf8e
+  style Vercel fill:#1a2e1a,color:#fff,stroke:#3ecf8e
+  style Gemini fill:#1a2e1a,color:#fff,stroke:#3ecf8e
 ```
-                        ┌─────────────┐
-                    ┌──▶│   Gemini AI  │──┐
-                    │   └─────────────┘  │
-              텍스트만 요청         텍스트만 응답
-              (압축 img 소량)      (content/titles/tags)
-                    │                    │
-                    │                    ▼
-┌──────────┐   req (텍스트)  ┌───────────────────┐
-│  Client  │───────────────▶│   Vercel 서버      │
-│ (브라우저) │◀───────────────│   (AI 중계만)      │
-│          │   JSON 응답     └───────────────────┘
-│          │                    서버 부하 제로
-│  ┌───────────────┐            이미지 전송 없음
-│  │ React 컴포넌트 │
-│  │ (HTML 렌더링)  │◀── 원본 이미지 (로컬)
-│  │               │◀── 텍스트 수정 → 즉시 반영
-│  └───────┬───────┘
-│          │
-│    다운로드 시에만
-│          ▼
-│   html2canvas → PNG
-└──────────────────────
-```
+
+> 해결: 이미지는 클라이언트에만 존재, Vercel은 텍스트 중계만, 서버 부하 제로
 
 **단점/주의사항**
 - `html2canvas`는 서버 `@napi-rs/canvas`보다 폰트 렌더링이 미세하게 다를 수 있음
