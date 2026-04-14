@@ -2,6 +2,13 @@
 
 import { useProductStore } from '@/stores/productStore'
 
+/** 숫자만 추출 후 콤마 포맷 */
+function formatPrice(value: string): string {
+  const num = value.replace(/[^\d]/g, '')
+  if (!num) return ''
+  return Number(num).toLocaleString('ko-KR')
+}
+
 const CATEGORIES = [
   '패딩/점퍼', '집업/후리스', '티셔츠/맨투맨', '바지/하의', '가방/배낭',
   '모자/액세서리', '신발/부츠', '슬리퍼/샌들', '스카프/머플러', '기타 의류/잡화',
@@ -33,7 +40,7 @@ export default function ProductForm() {
         <div className="flex items-center gap-[5px] text-[11px] font-medium text-text2 mb-[6px]">
           <span className="w-[5px] h-[5px] rounded-full bg-accent opacity-70" />판매 가격
         </div>
-        <input className="w-full bg-surface2 border border-border rounded-lg px-[11px] py-2 text-[12.5px] text-text font-sans placeholder:text-text3 focus:outline-none focus:border-accent focus:shadow-[0_0_0_3px_var(--accent-dim)] transition-[border-color,box-shadow] duration-150 appearance-none" placeholder="예: 39,900" value={product.price} onChange={(e) => setProduct({ price: e.target.value })} />
+        <input className="w-full bg-surface2 border border-border rounded-lg px-[11px] py-2 text-[12.5px] text-text font-sans placeholder:text-text3 focus:outline-none focus:border-accent focus:shadow-[0_0_0_3px_var(--accent-dim)] transition-[border-color,box-shadow] duration-150 appearance-none" placeholder="예: 39,900" value={product.price} onChange={(e) => setProduct({ price: formatPrice(e.target.value) })} inputMode="numeric" />
       </div>
 
       {/* Category */}

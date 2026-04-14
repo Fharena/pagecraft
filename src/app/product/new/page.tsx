@@ -31,6 +31,7 @@ export default function ProductNewPage() {
     renderedImageUrl,
     generatedContent,
     loadingMessage,
+    generateError,
   } = useEditorStore()
   const { generateContent } = useAIGenerate()
 
@@ -230,8 +231,28 @@ export default function ProductNewPage() {
               </div>
             )}
 
+            {/* Error state — 재시도 버튼 */}
+            {!isLoading && generateError && (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 30px', textAlign: 'center' }}>
+                <div style={{ width: 72, height: 72, background: 'rgba(248,113,113,0.08)', borderRadius: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 30, marginBottom: 20, border: '1px solid rgba(248,113,113,0.2)' }}>
+                  ⚠
+                </div>
+                <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 8, color: 'var(--text)' }}>생성에 실패했습니다</h3>
+                <p style={{ fontSize: 12, color: 'var(--red)', lineHeight: 1.6, marginBottom: 16, maxWidth: 400, wordBreak: 'break-word' }}>
+                  {generateError}
+                </p>
+                <button
+                  onClick={generateContent}
+                  disabled={!canGenerate}
+                  style={{ padding: '10px 24px', borderRadius: 8, fontSize: 13, fontWeight: 700, background: 'var(--accent)', border: 'none', color: '#0c0c10', cursor: 'pointer', transition: 'all 0.2s' }}
+                >
+                  ↺ 다시 시도
+                </button>
+              </div>
+            )}
+
             {/* Empty state */}
-            {!isLoading && !renderedImageUrl && (
+            {!isLoading && !generateError && !renderedImageUrl && (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '80px 30px', textAlign: 'center' }}>
                 <div style={{ width: 72, height: 72, background: 'var(--surface2)', borderRadius: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 30, marginBottom: 20, border: '1px solid var(--border)' }}>
                   🛍

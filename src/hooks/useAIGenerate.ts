@@ -34,6 +34,7 @@ export function useAIGenerate() {
     setGeneratedTitles,
     setGeneratedTags,
     setLoadingMessage,
+    setGenerateError,
     setActiveTab,
   } = useEditorStore()
 
@@ -41,6 +42,7 @@ export function useAIGenerate() {
     if (images.length === 0) return
 
     setIsGenerating(true)
+    setGenerateError('')
     setLoadingMessage(LOADING_MESSAGES[0])
 
     let msgIdx = 0
@@ -97,6 +99,8 @@ export function useAIGenerate() {
         setRenderedImageUrl(url)
       }
     } catch (err) {
+      const msg = err instanceof Error ? err.message : 'AI 생성에 실패했습니다.'
+      setGenerateError(msg)
       console.error('AI 생성 실패:', err)
     } finally {
       clearInterval(interval)
@@ -112,6 +116,7 @@ export function useAIGenerate() {
     setIsGenerating,
     setIsRenderingPng,
     setLoadingMessage,
+    setGenerateError,
     setActiveTab,
   ])
 

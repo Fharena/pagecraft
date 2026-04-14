@@ -18,6 +18,7 @@ interface EditorState {
   isGeneratingTitles: boolean
   isGeneratingTags: boolean
   loadingMessage: string
+  generateError: string
 
   setGeneratedContent: (content: GeneratedContent | null) => void
   setGeneratedTitles: (titles: GeneratedTitle[]) => void
@@ -29,6 +30,7 @@ interface EditorState {
   setIsGeneratingTitles: (loading: boolean) => void
   setIsGeneratingTags: (loading: boolean) => void
   setLoadingMessage: (message: string) => void
+  setGenerateError: (error: string) => void
   resetEditor: () => void
 }
 
@@ -46,6 +48,7 @@ export const useEditorStore = create<EditorState>()(
       isGeneratingTitles: false,
       isGeneratingTags: false,
       loadingMessage: '',
+      generateError: '',
 
       setGeneratedContent: (content) => set({ generatedContent: content }),
       setGeneratedTitles: (titles) => set({ generatedTitles: titles }),
@@ -57,6 +60,7 @@ export const useEditorStore = create<EditorState>()(
       setIsGeneratingTitles: (loading) => set({ isGeneratingTitles: loading }),
       setIsGeneratingTags: (loading) => set({ isGeneratingTags: loading }),
       setLoadingMessage: (message) => set({ loadingMessage: message }),
+      setGenerateError: (error) => set({ generateError: error }),
       resetEditor: () =>
         set({
           generatedContent: null,
@@ -69,6 +73,7 @@ export const useEditorStore = create<EditorState>()(
           isGeneratingTitles: false,
           isGeneratingTags: false,
           loadingMessage: '',
+          generateError: '',
         }),
     }),
     {

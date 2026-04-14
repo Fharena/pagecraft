@@ -2,10 +2,12 @@
 
 import { useRef } from 'react'
 import { useImageUpload } from '@/hooks/useImageUpload'
+import { useImageStore } from '@/stores/imageStore'
 
 export default function ImageUploader() {
   const inputRef = useRef<HTMLInputElement>(null)
   const { handleFiles, handleDrop, handleDragOver } = useImageUpload()
+  const { images } = useImageStore()
 
   return (
     <div
@@ -24,7 +26,10 @@ export default function ImageUploader() {
       />
       <p className="text-2xl mb-2">📷</p>
       <p className="text-[13px] font-semibold text-text mb-[4px]">사진 업로드</p>
-      <p className="text-[11px] text-text2 leading-[1.5]">클릭하거나 드래그<br />JPG · PNG · 최대 10장</p>
+      <p className="text-[11px] text-text2 leading-[1.5]">
+        클릭하거나 드래그<br />
+        JPG · PNG · {images.length > 0 ? `${images.length}/10장` : '최대 10장'}
+      </p>
     </div>
   )
 }
