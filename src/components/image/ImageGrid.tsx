@@ -6,7 +6,7 @@ import Modal from '@/components/ui/Modal'
 import CropEditor from '@/components/image/CropEditor'
 
 export default function ImageGrid() {
-  const { images, removeImage, reorderImages } = useImageStore()
+  const { images, removeImage, reorderImages, thumbnailImageId, setThumbnailSource } = useImageStore()
   const [dragIdx, setDragIdx] = useState<number | null>(null)
   const [previewIdx, setPreviewIdx] = useState<number | null>(null)
   const [cropIdx, setCropIdx] = useState<number | null>(null)
@@ -54,6 +54,26 @@ export default function ImageGrid() {
                 ✓
               </div>
             )}
+
+            {/* Thumbnail badge */}
+            {thumbnailImageId === img.id && (
+              <div style={{ position: 'absolute', bottom: '3px', left: '3px', padding: '1px 5px', borderRadius: '4px', background: 'var(--accent)', color: '#0c0c10', fontSize: '8px', fontWeight: 700, zIndex: 2 }}>
+                썸네일
+              </div>
+            )}
+
+            {/* Thumbnail set button */}
+            <button
+              style={{ position: 'absolute', bottom: '3px', left: thumbnailImageId === img.id ? '45px' : '3px', width: '18px', height: '18px', borderRadius: '4px', background: thumbnailImageId === img.id ? 'var(--accent)' : 'rgba(0,0,0,0.7)', border: 'none', color: thumbnailImageId === img.id ? '#0c0c10' : '#fff', fontSize: '10px', cursor: 'pointer', zIndex: 3, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'opacity 0.15s' }}
+              className={thumbnailImageId === img.id ? '' : 'opacity-0 group-hover:!opacity-100'}
+              onClick={(e) => {
+                e.stopPropagation()
+                setThumbnailSource(thumbnailImageId === img.id ? null : img.id)
+              }}
+              title={thumbnailImageId === img.id ? '썸네일 해제' : '썸네일 지정'}
+            >
+              📌
+            </button>
 
             {/* Crop button */}
             <button

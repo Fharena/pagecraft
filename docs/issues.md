@@ -18,14 +18,14 @@ ApiError: Request Entity Too Large — FUNCTION_PAYLOAD_TOO_LARGE
 - 로컬에서는 정상이지만 Vercel 배포 후에만 발생
 
 **원인**
-- Vercel 무료 티어 body 제한: **4.5MB**
+- Vercel 무료 티어 body 제한: **4.5MB** (Pro도 동일)
 - 상품 이미지를 base64 원본으로 서버에 전송 (이미지 1장당 ~200KB~1MB)
 - 이미지 10장 + 스토어/약관 이미지 합치면 4.5MB 쉽게 초과
 - `next.config.ts`의 `bodySizeLimit` 설정은 Vercel 플랫폼 제한과 무관 (서버 자체 설정일 뿐)
 
 **해결 방법**
 - AI 분석용 이미지만 `compressForAI(400px, 0.5)` 압축 후 전송 (최대 5장, ~250KB)
-- 상세페이지 렌더링은 클라이언트로 전환하여 서버 전송 자체를 제거 (아래 #2 참고)
+- 상세페이지 렌더링은 클라이언트 미리보기 + 서버 다운로드 하이브리드로 전환 (아래 #3 참고)
 
 **개선 전후 비교**
 
@@ -33,116 +33,131 @@ ApiError: Request Entity Too Large — FUNCTION_PAYLOAD_TOO_LARGE
 |---|---|---|
 | AI 전송 이미지 | 원본 800px, 전체 | 400px/0.5, 최대 5장 |
 | AI payload | ~2MB | ~250KB |
-| 렌더 전송 이미지 | 원본 → 서버 POST | 전송 없음 (클라이언트 렌더링) |
-| Vercel 제한 | 4.5MB에 걸림 | 제한 무관 |
+| 렌더 전송 이미지 | 원본 + 스토어/약관 전부 → 서버 POST | 상품 이미지만 780px 압축, 스토어/약관 미전송 |
+| Vercel 제한 | 4.5MB에 걸림 | 제한 내 |
 
 **관련 파일**: `src/lib/image.ts`, `src/components/image/AiModelToggle.tsx`, `src/hooks/useAIGenerate.ts`
 
 ---
 
-## #2. 실시간 렌더링 + 상세페이지 품질을 위한 클라이언트/서버 응답 교환 개선
+## #2. 상세페이지 PNG 다운로드 — 클라이언트 렌더링 라이브러리 검토 과정
 
-**문제 상황**
-- 상세페이지 생성 후 텍스트를 수정하면 "재렌더링" 버튼 → 서버 API 호출 → 2~3초 대기 필요
-- 이미지를 서버에 보내야 해서 780px/0.75로 압축 → 상세페이지 이미지 품질 저하
-- Vercel 4.5MB 제한 때문에 이미지 장수/해상도에 제약
+**목표**
+- 미리보기를 HTML React 컴포넌트로 전환 → 실시간 반영
+- PNG 다운로드도 클라이언트에서 처리 → 서버 부하 제로, Vercel 제한 회피
 
-**배경**
-- 기존: 서버(`@napi-rs/canvas`)에서 PNG 렌더링 → 이미지를 base64로 서버에 보내야 함
+**시도한 라이브러리와 결과**
 
-**해결 방법: 렌더링을 클라이언트(HTML React)로 전환**
--> 이를 통해 직전에 Vercel 제한으로 인한 문제를 회피할수 있겠다는 추가 효과 기대.
+### 시도 1: html2canvas
 
-**개선 전후 비교**
-
-| | 변경 전 (서버 렌더링) | 변경 후 (클라이언트 렌더링) |
-|---|---|---|
-| 렌더링 위치 | 서버 (@napi-rs/canvas) | 클라이언트 (HTML React 컴포넌트) |
-| 이미지 전송 | base64로 서버에 POST | 전송 없음 (로컬 사용) |
-| Vercel 제한 | 4.5MB에 걸림 | API 호출 없음, 제한 무관 |
-| 이미지 품질 | 압축 필요 (780px/0.75) | 원본 그대로 (재인코딩 없음) |
-| 미리보기 반영 | API 호출 2~3초 | 실시간 즉시 반영 |
-| 텍스트 수정 | 수정 → 재렌더링 버튼 → API | 수정 → 자동 반영 |
-| 서버 부하 | 렌더링마다 CPU 사용 | 제로 |
-| PNG 다운로드 | 서버에서 PNG 반환 | html2canvas로 클라이언트 변환 |
-
-**아키텍처 변경**
-
-### 변경 전 — 서버 렌더링
-
-```mermaid
-flowchart TB
-  subgraph Client["🖥 Client (브라우저)"]
-    Upload["이미지 업로드"]
-    Compress["이미지 압축\n780px / 0.75"]
-    Display["PNG 표시"]
-  end
-
-  subgraph Vercel["☁ Vercel 서버"]
-    API_Copy["/api/ai/copy"]
-    API_Render["/api/render\n@napi-rs/canvas"]
-  end
-
-  subgraph Gemini["🤖 Gemini AI"]
-    AI["텍스트 생성"]
-  end
-
-  Upload --> Compress
-  Compress -->|"img + 문구 요청\n(~2MB)"| API_Copy
-  API_Copy -->|"img + 프롬프트"| AI
-  AI -->|"JSON 응답"| API_Copy
-  API_Copy -->|"content"| Compress
-  Compress -->|"img 재전송\n(~2MB)"| API_Render
-  API_Render -->|"PNG blob\n(2~3초)"| Display
-
-  style Client fill:#1a1a2e,color:#fff,stroke:#e8c97a
-  style Vercel fill:#2d1810,color:#fff,stroke:#f87171
-  style Gemini fill:#1a2e1a,color:#fff,stroke:#3ecf8e
+```
+npm install html2canvas
 ```
 
-> 문제: 이미지가 Client ↔ Vercel 사이를 2번 왕복, 압축 필수, Vercel 4.5MB 제한에 걸림
+| 항목 | 결과 |
+|------|------|
+| 영문 텍스트 | 정상 |
+| 한글 텍스트 | **자간 깨짐** — 글자가 겹치거나 벌어짐 |
+| `scale: 2` | 빈 이미지 출력 (흰색) |
+| `scale: 1` | 출력되지만 한글 품질 불량 |
+| `foreignObjectRendering: true` | `scale: 2`에서 빈 이미지, `scale: 1`에서도 여전히 깨짐 |
 
-### 변경 후 — 클라이언트 렌더링
+**원인**: html2canvas는 DOM을 자체 파싱해서 canvas API로 다시 그림. 이 과정에서 브라우저의 폰트 메트릭과 canvas API의 `measureText`가 달라서 한글 글리프 간격이 틀어짐.
+
+### 시도 2: dom-to-image-more
+
+```
+npm install dom-to-image-more
+```
+
+| 항목 | 결과 |
+|------|------|
+| 방식 | DOM → SVG → PNG (SVG foreignObject 기반) |
+| 한글 폰트 | html2canvas보다 나을 거라 기대했으나 동일 |
+| 렌더링 | **모든 텍스트 요소에 사각형 테두리** 생성 |
+| `scale: 2` | 아티팩트 더 심해짐 |
+
+**원인**: SVG foreignObject 렌더링 시 브라우저가 각 텍스트 요소의 경계 박스를 그림. CSS 스타일 복제 과정에서 border/outline이 추가되는 버그.
+
+### 결론: 클라이언트 캡처로는 한글 품질 보장 불가
+
+| 라이브러리 | 한글 자간 | 아티팩트 | 고해상도 | 판정 |
+|-----------|----------|---------|---------|------|
+| html2canvas | 깨짐 | 없음 | 빈 이미지 | ❌ |
+| dom-to-image-more | 깨짐 | 사각형 테두리 | 아티팩트 | ❌ |
+| 서버 @napi-rs/canvas | **완벽** | 없음 | 완벽 | ✅ |
+
+**이유**: 서버 `@napi-rs/canvas`는 폰트 파일(OTF)을 직접 등록하고 `registerFont` → `ctx.font` → `ctx.fillText`로 글자를 직접 그림. 클라이언트 라이브러리는 브라우저 렌더링을 "캡처"하려는 시도를 하는 것이라 근본적으로 정확도가 다름.
+
+---
+
+## #3. 최종 해결 — 서버×클라이언트 하이브리드 렌더링
+
+**문제 상황**
+- 서버 렌더링만: Vercel 4.5MB 제한 + 스토어/약관 이미지 이중 압축 열화
+- 클라이언트 렌더링만: 한글 폰트 깨짐 (위 #2 참고)
+- 스토어 소개/약관 이미지는 특히 압축 → 서버 전송 → PNG 재인코딩으로 열화가 심함
+
+**해결 방법: 역할 분리**
+
+| 역할 | 담당 | 이유 |
+|------|------|------|
+| **미리보기** | 클라이언트 (React HTML) | 실시간 반영, 원본 이미지 |
+| **본문 PNG** | 서버 (@napi-rs/canvas) | 한글 폰트 완벽 |
+| **상하단 이미지 합성** | 클라이언트 (canvas) | 원본 화질 유지, 서버 전송 불필요 |
+
+**다운로드 흐름**
 
 ```mermaid
 flowchart TB
   subgraph Client["🖥 Client (브라우저)"]
-    Upload["이미지 업로드"]
-    Store["IndexedDB\n원본 저장"]
+    Store["IndexedDB\n원본 이미지"]
     Preview["React 컴포넌트\n실시간 미리보기"]
-    Download["html2canvas\nPNG 다운로드"]
+    Merge["canvas 합성\n세로 이어붙이기"]
+    PNG["최종 PNG\n다운로드"]
   end
 
   subgraph Vercel["☁ Vercel 서버"]
-    API_Copy["/api/ai/copy"]
+    Render["/api/render\n본문만 PNG\n(스토어/약관 제외)"]
   end
 
-  subgraph Gemini["🤖 Gemini AI"]
-    AI["텍스트 생성"]
-  end
-
-  Upload --> Store
-  Store -->|"원본 이미지\n(로컬)"| Preview
-  Store -->|"압축 img\n400px/0.5\n(~250KB)"| API_Copy
-  API_Copy -->|"프롬프트"| AI
-  AI -->|"JSON"| API_Copy
-  API_Copy -->|"content+titles+tags"| Preview
-  Preview -->|"다운로드 시에만"| Download
+  Store -->|"원본"| Preview
+  Store -->|"상품이미지 압축\n780px/0.75"| Render
+  Render -->|"본문 PNG"| Merge
+  Store -->|"스토어소개 원본"| Merge
+  Store -->|"약관 원본"| Merge
+  Merge --> PNG
 
   style Client fill:#1a1a2e,color:#fff,stroke:#3ecf8e
   style Vercel fill:#1a2e1a,color:#fff,stroke:#3ecf8e
-  style Gemini fill:#1a2e1a,color:#fff,stroke:#3ecf8e
 ```
 
-> 해결: 이미지는 클라이언트에만 존재, Vercel은 텍스트 중계만, 서버 부하 제로
+**합성 구조**
+```
+┌───────────────────┐
+│ 스토어 소개 (원본)  │ ← 클라이언트에서 원본 그대로
+├───────────────────┤
+│                   │
+│  본문 PNG (서버)   │ ← @napi-rs/canvas, 한글 완벽
+│  (헤더~가격 푸터)   │
+│                   │
+├───────────────────┤
+│ 약관 (원본)        │ ← 클라이언트에서 원본 그대로
+└───────────────────┘
+```
 
-**단점/주의사항**
-- `html2canvas`는 서버 `@napi-rs/canvas`보다 폰트 렌더링이 미세하게 다를 수 있음
-- 브라우저별 렌더링 차이 가능성 (크로스 브라우저)
-- 서버 렌더링 코드(`render.service.ts`, `/api/render`)는 fallback으로 유지
+**개선 전후 비교**
+
+| | 전체 서버 렌더링 | 하이브리드 (최종) |
+|---|---|---|
+| 서버 전송 payload | 상품img + 스토어 + 약관 (~4MB+) | 상품img만 (~1.5MB) |
+| 스토어/약관 화질 | 780px/0.75 이중 압축 열화 | **원본 그대로** |
+| 본문 한글 폰트 | 완벽 | 완벽 (서버 유지) |
+| 미리보기 반영 | API 2~3초 | **실시간** |
+| Vercel 4.5MB | 초과 위험 | 안전 |
 
 **관련 파일**:
-- `src/components/editor/DetailPagePreview.tsx` (신규)
-- `src/app/product/new/page.tsx`
-- `src/hooks/useAIGenerate.ts`
-- `src/lib/image.ts`
+- `src/components/editor/DetailPagePreview.tsx` — 실시간 HTML 미리보기
+- `src/app/product/new/page.tsx` — 다운로드 로직 (서버 PNG + 클라이언트 합성)
+- `src/services/render.service.ts` — 서버 본문 렌더링 (스토어/약관 제외)
+- `src/lib/image.ts` — `compressForRender`, `compressForAI`

@@ -22,6 +22,8 @@ interface ImageState {
   images: ProductImage[]
   storeIntroImage: string | null
   termsImage: string | null
+  thumbnailImageId: string | null
+  thumbnailDataUrl: string | null
   bgRemoveEnabled: boolean
   aiModelEnabled: boolean
   aiModelGender: 'male' | 'female'
@@ -31,6 +33,8 @@ interface ImageState {
   removeImage: (id: string) => void
   reorderImages: (fromIndex: number, toIndex: number) => void
   updateImage: (id: string, partial: Partial<ProductImage>) => void
+  setThumbnailSource: (imageId: string | null) => void
+  setThumbnailDataUrl: (dataUrl: string | null) => void
   setStoreIntroImage: (dataUrl: string | null) => void
   setTermsImage: (dataUrl: string | null) => void
   setBgRemoveEnabled: (enabled: boolean) => void
@@ -48,6 +52,8 @@ function persistImages(images: ProductImage[]) {
 
 export const useImageStore = create<ImageState>()((set, get) => ({
   images: [],
+  thumbnailImageId: null,
+  thumbnailDataUrl: null,
   storeIntroImage: null,
   termsImage: null,
   bgRemoveEnabled: false,
@@ -103,6 +109,9 @@ export const useImageStore = create<ImageState>()((set, get) => ({
     })
   },
 
+  setThumbnailSource: (imageId) => set({ thumbnailImageId: imageId }),
+  setThumbnailDataUrl: (dataUrl) => set({ thumbnailDataUrl: dataUrl }),
+
   setStoreIntroImage: (dataUrl) => {
     set({ storeIntroImage: dataUrl })
     saveToLocal(LS_STORE_INTRO, dataUrl)
@@ -125,6 +134,8 @@ export const useImageStore = create<ImageState>()((set, get) => ({
   resetAll: () => {
     set({
       images: [],
+      thumbnailImageId: null,
+      thumbnailDataUrl: null,
       storeIntroImage: loadFromLocal(LS_STORE_INTRO),
       termsImage: loadFromLocal(LS_TERMS),
       bgRemoveEnabled: false,
