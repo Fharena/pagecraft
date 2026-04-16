@@ -40,12 +40,14 @@ export default function ProductNewPage() {
   const { generateContent } = useAIGenerate()
   const canGenerate = images.length > 0 && product.name.trim() !== ''
 
-  // 비로그인이면 랜딩페이지로 (훅 아래에서 early return)
-  useEffect(() => {
-    if (status === 'unauthenticated') router.push('/')
-  }, [status, router])
+  const skipAuth = process.env.NEXT_PUBLIC_SKIP_AUTH === 'true'
 
-  if (status === 'loading' || status === 'unauthenticated') {
+  // 비로그인이면 랜딩페이지로 (SKIP_AUTH면 패스)
+  useEffect(() => {
+    if (!skipAuth && status === 'unauthenticated') router.push('/')
+  }, [status, router, skipAuth])
+
+  if (!skipAuth && (status === 'loading' || status === 'unauthenticated')) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-bg">
         <p className="text-text3">로딩 중...</p>

@@ -8,9 +8,11 @@ export default function Home() {
   const { data: session, status } = useSession()
   const router = useRouter()
 
+  const skipAuth = process.env.NEXT_PUBLIC_SKIP_AUTH === 'true'
+
   useEffect(() => {
-    if (session) router.push('/product/new')
-  }, [session, router])
+    if (skipAuth || session) router.push('/product/new')
+  }, [session, router, skipAuth])
 
   if (status === 'loading') {
     return (

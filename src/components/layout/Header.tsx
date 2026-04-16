@@ -1,14 +1,33 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useSession, signOut } from 'next-auth/react'
 import { useProductStore } from '@/stores/productStore'
 import { useImageStore } from '@/stores/imageStore'
 import { useEditorStore } from '@/stores/editorStore'
 
+interface UsageData {
+  generate: { used: number; limit: number; remaining: number }
+  image: { used: number; limit: number; remaining: number }
+}
+
 export default function Header() {
   const [isDark, setIsDark] = useState(true)
+  const [showPanel, setShowPanel] = useState(false)
+  const [usage, setUsage] = useState<UsageData | null>(null)
   const { data: session } = useSession()
+
+  const fetchUsage = useCallback(async () => {
+    try {
+      const res = await fetch('/api/usage')
+      if (res.ok) setUsage(await res.json())
+    } catch { /* ignore */ }
+  }, [])
+
+  // 패널 열 때 사용량 조회
+  useEffect(() => {
+    if (showPanel) fetchUsage()
+  }, [showPanel, fetchUsage])
   const { resetProduct } = useProductStore()
   const { resetAll: resetImages } = useImageStore()
   const { resetEditor } = useEditorStore()
@@ -151,22 +170,125 @@ export default function Header() {
         패션 · 의류 · 잡화
       </div>
 
-      {/* 유저 정보 + 로그아웃 */}
+      {/* 프로필 토글 */}
       {session?.user && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--text3)' }}>
-            {session.user.name || session.user.email}
-          </span>
+        <div style={{ position: 'relative' }}>
           <button
-            onClick={() => signOut({ callbackUrl: '/' })}
+            onClick={() => setShowPanel(!showPanel)}
             style={{
-              fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--text3)',
-              background: 'none', border: 'none', cursor: 'pointer',
-              textDecoration: 'underline',
+              width: 32, height: 32, borderRadius: '50%',
+              border: showPanel ? '2px solid var(--accent)' : '2px solid var(--border2)',
+              cursor: 'pointer', overflow: 'hidden', padding: 0,
+              background: 'var(--surface2)', transition: 'border-color 0.15s',
             }}
           >
-            로그아웃
+            {session.user.image ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={session.user.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            ) : (
+              <span style={{ fontSize: 14, color: 'var(--text2)' }}>
+                {(session.user.name || '?')[0]}
+              </span>
+            )}
           </button>
+
+          {/* 사용량 패널 */}
+          {showPanel && (
+            <>
+              {/* 닫기 오버레이 */}
+              <div
+                style={{ position: 'fixed', inset: 0, zIndex: 199 }}
+                onClick={() => setShowPanel(false)}
+              />
+              <div
+                style={{
+                  position: 'absolute', top: 40, right: 0, zIndex: 200,
+                  width: 260, background: 'var(--surface)', border: '1px solid var(--border)',
+                  borderRadius: 12, padding: 16, boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+                }}
+              >
+                {/* 유저 정보 */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                  {session.user.image && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={session.user.image} alt="" style={{ width: 36, height: 36, borderRadius: '50%' }} />
+                  )}
+                  <div>
+                    <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', margin: 0 }}>
+                      {session.user.name}
+                    </p>
+                    <p style={{ fontSize: 10, color: 'var(--text3)', margin: 0 }}>
+                      {session.user.email}
+                    </p>
+                  </div>
+                </div>
+
+                <div style={{ height: 1, background: 'var(--border)', margin: '0 0 12px' }} />
+
+                {/* 사용량 */}
+                <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--text3)', letterSpacing: 1, textTransform: 'uppercase', margin: '0 0 10px' }}>
+                  플랜 사용량
+                </p>
+
+                {usage ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {/* 상세페이지 생성 */}
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>
+                        <span>상세페이지 생성</span>
+                        <span>{usage.generate.used}/{usage.generate.limit} · {usage.generate.remaining}회 남음</span>
+                      </div>
+                      <div style={{ height: 4, background: 'var(--surface3)', borderRadius: 2, overflow: 'hidden' }}>
+                        <div style={{
+                          height: '100%', borderRadius: 2, transition: 'width 0.3s',
+                          width: `${(usage.generate.used / usage.generate.limit) * 100}%`,
+                          background: usage.generate.remaining <= 2 ? 'var(--red)' : 'var(--accent)',
+                        }} />
+                      </div>
+                    </div>
+
+                    {/* AI 이미지 생성 */}
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>
+                        <span>AI 이미지 생성</span>
+                        <span>{usage.image.used}/{usage.image.limit} · {usage.image.remaining}회 남음</span>
+                      </div>
+                      <div style={{ height: 4, background: 'var(--surface3)', borderRadius: 2, overflow: 'hidden' }}>
+                        <div style={{
+                          height: '100%', borderRadius: 2, transition: 'width 0.3s',
+                          width: `${(usage.image.used / usage.image.limit) * 100}%`,
+                          background: usage.image.remaining <= 1 ? 'var(--red)' : 'var(--green)',
+                        }} />
+                      </div>
+                    </div>
+
+                    <p style={{ fontSize: 9, color: 'var(--text3)', margin: 0 }}>
+                      매일 자정 초기화
+                    </p>
+                  </div>
+                ) : (
+                  <p style={{ fontSize: 11, color: 'var(--text3)' }}>로딩 중...</p>
+                )}
+
+                <div style={{ height: 1, background: 'var(--border)', margin: '12px 0' }} />
+
+                {/* 로그아웃 */}
+                <button
+                  onClick={() => signOut({ callbackUrl: '/' })}
+                  style={{
+                    width: '100%', padding: '8px', borderRadius: 6,
+                    fontSize: 12, color: 'var(--text2)', background: 'var(--surface2)',
+                    border: '1px solid var(--border)', cursor: 'pointer',
+                    transition: 'all 0.15s',
+                  }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--red)'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--red)' }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--border)'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--text2)' }}
+                >
+                  로그아웃
+                </button>
+              </div>
+            </>
+          )}
         </div>
       )}
     </header>

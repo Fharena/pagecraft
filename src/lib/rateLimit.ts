@@ -15,7 +15,8 @@ interface UsageEntry {
 const usageMap = new Map<string, UsageEntry>()
 
 function getToday(): string {
-  return new Date().toISOString().split('T')[0]
+  // 한국 시간(KST, UTC+9) 기준 날짜
+  return new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().split('T')[0]
 }
 
 function getUsage(userId: string, prefix: string): UsageEntry {
