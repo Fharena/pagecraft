@@ -35,7 +35,7 @@ export async function requireAuth(
 
   // 사용량 체크 (type이 있을 때만)
   if (type) {
-    const { allowed, remaining, limit } = await checkRateLimit(session.user.id, type)
+    const { allowed, remaining, limit } = await checkRateLimit(session.user.id, type, session.user.email)
     if (!allowed) {
       return {
         session: null,

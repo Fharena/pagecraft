@@ -10,6 +10,9 @@ const AI_IMAGE_LIMIT = 5 // 1인 1일 AI 이미지 생성 5회
 
 const useKV = !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN)
 
+// 관리자 이메일 — 사용량 제한 없음
+const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim()).filter(Boolean)
+
 // ── 메모리 폴백 (로컬 개발용) ──
 const memoryMap = new Map<string, number>()
 
@@ -49,12 +52,22 @@ function incrementMemory(key: string): void {
 }
 
 // ── 공통 API ──
-export async function checkRateLimit(userId: string, type: 'generate' | 'image'): Promise<{
+export function isAdmin(email: string | null | undefined): boolean {
+  return !!email && ADMIN_EMAILS.includes(email)
+}
+
+export async function checkRateLimit(userId: string, type: 'generate' | 'image', email?: string | null): Promise<{
   allowed: boolean
   remaining: number
   limit: number
 }> {
   const limit = type === 'generate' ? DAILY_LIMIT : AI_IMAGE_LIMIT
+
+  // 관리자는 무제한
+  if (isAdmin(email)) {
+    return { allowed: true, remaining: 999, limit: 999 }
+  }
+
   const key = makeKey(userId, type)
   const count = useKV ? await getCountKV(key) : getCountMemory(key)
 
