@@ -35,7 +35,7 @@ export async function requireAuth(
 
   // 사용량 체크 (type이 있을 때만)
   if (type) {
-    const { allowed, remaining, limit } = checkRateLimit(session.user.id, type)
+    const { allowed, remaining, limit } = await checkRateLimit(session.user.id, type)
     if (!allowed) {
       return {
         session: null,
@@ -57,6 +57,6 @@ export async function requireAuth(
 /**
  * 사용 후 카운트 증가
  */
-export function recordUsage(userId: string, type: 'generate' | 'image') {
-  incrementUsage(userId, type)
+export async function recordUsage(userId: string, type: 'generate' | 'image') {
+  await incrementUsage(userId, type)
 }

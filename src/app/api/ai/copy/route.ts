@@ -18,7 +18,7 @@ export async function POST(req: Request) {
     }
 
     const result = await generateAll(body, body.coupangSuggestions || [])
-    recordUsage(session!.user.id, 'generate')
+    await recordUsage(session!.user.id, 'generate')
     return NextResponse.json(result)
   } catch (err) {
     console.error('AI 통합 생성 오류:', err)

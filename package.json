@@ -12,6 +12,7 @@
   "dependencies": {
     "@imgly/background-removal": "^1.7.0",
     "@napi-rs/canvas": "^0.1.44",
+    "@vercel/kv": "^3.0.0",
     "idb": "^8.0.3",
     "next": "16.2.3",
     "next-auth": "^4.24.14",

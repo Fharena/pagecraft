@@ -18,7 +18,7 @@ export async function POST(req: Request) {
     }
 
     const image = await generateModelImage(body)
-    recordUsage(session!.user.id, 'image')
+    await recordUsage(session!.user.id, 'image')
     return NextResponse.json({ image })
   } catch (err) {
     console.error('AI 모델 이미지 생성 오류:', err)

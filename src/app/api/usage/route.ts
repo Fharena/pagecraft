@@ -9,8 +9,8 @@ export async function GET() {
     return NextResponse.json({ error: '로그인 필요' }, { status: 401 })
   }
 
-  const generate = checkRateLimit(session.user.id, 'generate')
-  const image = checkRateLimit(session.user.id, 'image')
+  const generate = await checkRateLimit(session.user.id, 'generate')
+  const image = await checkRateLimit(session.user.id, 'image')
 
   return NextResponse.json({
     generate: { used: generate.limit - generate.remaining, limit: generate.limit, remaining: generate.remaining },
