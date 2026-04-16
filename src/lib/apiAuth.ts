@@ -13,6 +13,14 @@ export async function requireAuth(
   session: { user: { id: string; email?: string | null; name?: string | null } } | null
   error: NextResponse | null
 }> {
+  // 개발 모드: SKIP_AUTH=true면 인증+제한 스킵
+  if (process.env.SKIP_AUTH === 'true') {
+    return {
+      session: { user: { id: 'dev', email: 'dev@local', name: 'Developer' } },
+      error: null,
+    }
+  }
+
   const session = await getServerSession(authOptions)
 
   if (!session?.user?.id) {

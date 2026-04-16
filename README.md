@@ -11,7 +11,6 @@
 
 - Node.js 20+
 - npm
-- Supabase 프로젝트 (DB + Storage + Auth)
 
 ### 설치 & 실행
 
@@ -34,23 +33,34 @@ npm run dev
 `.env.local` 파일에 아래 키를 설정:
 
 ```env
-# Supabase
-NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
-SUPABASE_SERVICE_ROLE_KEY=eyJ...
+# === Gemini (필수) ===
+GEMINI_API_KEY=             # Google AI Studio에서 발급
+GEMINI_TEXT_MODEL=          # 기본값: gemini-2.5-flash
+GEMINI_IMAGE_MODEL=         # 기본값: gemini-2.5-flash-image
 
-# AI APIs
-ANTHROPIC_API_KEY=sk-ant-...       # Claude (카피/태그 생성)
-OPENAI_API_KEY=sk-...              # GPT Image (이미지 생성)
-REPLICATE_API_TOKEN=r8_...         # Stability AI (인페인팅)
-GEMINI_API_KEY=AI...               # Gemini Flash (벌크 처리, 선택)
+# === 인증 (배포 시 필수) ===
+GOOGLE_CLIENT_ID=           # Google Cloud OAuth 클라이언트 ID
+GOOGLE_CLIENT_SECRET=       # Google Cloud OAuth 시크릿
+NEXTAUTH_SECRET=            # openssl rand -base64 32 로 생성
+NEXTAUTH_URL=               # 배포 URL (예: https://pagecraft.vercel.app)
 
-# 쿠팡
-COUPANG_ACCESS_KEY=...             # 쿠팡 파트너스 API (선택)
-COUPANG_SECRET_KEY=...             # 쿠팡 파트너스 API (선택)
+# === 개발용 ===
+# SKIP_AUTH=true             # API 인증 + 사용량 제한 스킵
+# NEXT_PUBLIC_SKIP_AUTH=true # 클라이언트 인증 체크 스킵
 ```
 
-> API 키 발급 방법은 [docs/api-keys.md](docs/api-keys.md) 참고
+### 개발 모드 (인증 스킵)
+
+로컬에서 인증 없이 개발하려면 `.env.local`에 추가:
+
+```env
+SKIP_AUTH=true
+NEXT_PUBLIC_SKIP_AUTH=true
+```
+
+이러면 Google 로그인 없이 바로 서비스 사용 가능. API 사용량 제한도 스킵됨.
+
+**배포 환경에서는 절대 설정하지 않을 것** — Vercel 환경변수에 넣지 않으면 자동으로 인증 활성화.
 
 ---
 
@@ -58,142 +68,69 @@ COUPANG_SECRET_KEY=...             # 쿠팡 파트너스 API (선택)
 
 | 레이어 | 기술 | 비고 |
 |--------|------|------|
-| **프레임워크** | Next.js 15 (App Router) | 프론트 + API 라우트 통합 |
+| **프레임워크** | Next.js 16 (App Router) | 프론트 + API 라우트 통합 |
 | **언어** | TypeScript | 전체 적용 |
-| **UI** | React 19 + Tailwind CSS | 유틸리티 퍼스트 |
-| **상태 관리** | Zustand | 경량, 스토어별 관심사 분리 |
-| **DB** | Supabase (PostgreSQL) | 상품/시장 데이터, 유저 |
-| **스토리지** | Supabase Storage (S3 호환) | 이미지 저장 |
-| **인증** | Supabase Auth | JWT 기반, 소셜 로그인 |
-| **AI 텍스트** | Claude Sonnet 4 | 상품 카피, 상품명, 태그 20개 |
-| **AI 이미지** | GPT Image 1.5 | 상품 이미지 7장 생성 |
-| **인페인팅** | Stability AI (Replicate) | 가격태그 제거 |
-| **배포** | Vercel | Next.js 올인원 배포 |
+| **UI** | Tailwind CSS v4 | @theme 디자인 토큰 |
+| **상태 관리** | Zustand v5 | persist (IndexedDB + localStorage) |
+| **AI 텍스트** | Gemini 2.5 Flash | 카피, 상품명, 태그 통합 생성 |
+| **AI 이미지** | Gemini 2.5 Flash Image | 모델 이미지 생성 |
+| **배경 제거** | @imgly/background-removal | 클라이언트 ONNX |
+| **서버 렌더링** | @napi-rs/canvas | PNG 상세페이지 생성 |
+| **인증** | NextAuth v4 + Google OAuth | 세션 기반 |
+| **배포** | Vercel | 자동 배포 (main 브랜치) |
 
 ---
 
-## 프로젝트 구조
+## 핵심 플로우
 
 ```
-pagecraft/
-├── src/
-│   ├── app/                          # Next.js App Router (페이지)
-│   │   ├── layout.tsx                # 루트 레이아웃
-│   │   ├── page.tsx                  # 홈 (대시보드)
-│   │   ├── product/
-│   │   │   ├── new/page.tsx          # 상품 등록 (메인 플로우)
-│   │   │   └── [id]/page.tsx         # 상품 상세 보기
-│   │   ├── history/page.tsx          # 작업 히스토리
-│   │   │
-│   │   └── api/                      # API 라우트 (백엔드)
-│   │       ├── ai/
-│   │       │   ├── copy/route.ts     # POST - AI 카피 생성
-│   │       │   ├── titles/route.ts   # POST - 상품명 5개 생성
-│   │       │   └── tags/route.ts     # POST - 태그 20개 생성
-│   │       ├── image/
-│   │       │   ├── generate/route.ts # POST - AI 이미지 7장 생성
-│   │       │   └── inpaint/route.ts  # POST - 가격태그 인페인팅
-│   │       ├── render/
-│   │       │   └── route.ts          # POST - 상세페이지 PNG 렌더링
-│   │       └── market/
-│   │           ├── route.ts          # GET  - 쿠팡 시장 데이터
-│   │           └── suggest/route.ts  # GET  - 쿠팡 키워드 자동완성
-│   │
-│   ├── components/                   # React 컴포넌트
-│   │   ├── ui/                       # 공통 UI (Button, Input, Modal, Card)
-│   │   ├── image/                    # ImageUploader, ImageGrid, Cropper
-│   │   ├── editor/                   # PagePreview, CopyEditor, TagManager
-│   │   ├── market/                   # MarketCard, MarginCalculator
-│   │   └── layout/                   # Header, Sidebar, StepIndicator
-│   │
-│   ├── services/                     # 비즈니스 로직 (API 라우트와 분리)
-│   │   ├── ai.service.ts             # Claude/Gemini 호출, 프롬프트 빌더
-│   │   ├── image.service.ts          # GPT Image, Stability AI 호출
-│   │   ├── render.service.ts         # Canvas 렌더링 로직
-│   │   ├── market.service.ts         # 쿠팡 데이터 수집
-│   │   └── product.service.ts        # 상품 CRUD
-│   │
-│   ├── stores/                       # Zustand 상태 관리
-│   │   ├── productStore.ts           # 상품 정보
-│   │   ├── imageStore.ts             # 이미지 목록 + 처리 상태
-│   │   └── editorStore.ts            # 에디터 (카피, 태그, 레이아웃)
-│   │
-│   ├── hooks/                        # 커스텀 훅
-│   │   ├── useImageUpload.ts         # 업로드 + 압축
-│   │   ├── useAIGenerate.ts          # AI 생성 요청 + 상태
-│   │   └── useMarketData.ts          # 시장 데이터 조회
-│   │
-│   ├── lib/                          # 유틸리티
-│   │   ├── api.ts                    # API 클라이언트 (fetch wrapper)
-│   │   ├── supabase/
-│   │   │   ├── client.ts             # 브라우저용 클라이언트
-│   │   │   └── server.ts             # 서버용 클라이언트
-│   │   └── image.ts                  # 이미지 압축, base64 변환
-│   │
-│   ├── types/                        # TypeScript 타입 정의
-│   │   ├── product.ts
-│   │   ├── market.ts
-│   │   └── ai.ts
-│   │
-│   └── templates/                    # 상세페이지 렌더링 템플릿
-│       ├── base.template.ts          # 기본 레이아웃 설정
-│       └── fashion.template.ts       # 패션/의류 특화
-│
-├── public/                           # 정적 파일
-│   └── fonts/                        # 한글 폰트 (NotoSansKR)
-│
-├── docs/                             # 프로젝트 문서
-│   ├── onboarding.md                 # 신규 개발자 온보딩 가이드
-│   ├── architecture.md               # 아키텍처 설명 + 의사결정 배경
-│   ├── api-spec.md                   # API 엔드포인트 명세
-│   ├── api-keys.md                   # 외부 API 키 발급 방법
-│   └── known-issues.md              # 크리티컬 이슈 + 기술 부채
-│
-├── .env.example                      # 환경 변수 템플릿
-├── next.config.ts
-├── tailwind.config.ts
-├── tsconfig.json
-└── package.json
+이미지 업로드 → AI 생성 (카피+상품명+태그) → 실시간 미리보기 → PNG 다운로드
 ```
 
-### 구조 설계 원칙
-
-| 원칙 | 설명 |
-|------|------|
-| **services/ 분리** | API 라우트는 요청/응답만 처리. 비즈니스 로직은 services/에. 이후 Express 분리 시 services/를 그대로 가져감 |
-| **컴포넌트 캡슐화** | 기능별 폴더 (image/, editor/, market/)로 분리. 각 컴포넌트가 자체 상태와 로직 소유 |
-| **스토어 관심사 분리** | 전역 변수 대신 Zustand 스토어. productStore, imageStore, editorStore로 역할 구분 |
-| **템플릿 확장성** | 상세페이지 렌더링을 templates/에 분리. 레이아웃 JSON 설정으로 관리. 새 템플릿 추가 용이 |
-| **타입 안전** | TypeScript 전면 적용. API 요청/응답, 컴포넌트 props, 스토어 모두 타입 정의 |
-
----
-
-## 핵심 플로우 (MVP)
-
-```
-이미지 업로드 → 가격태그 제거 → 시장 조사 → AI 이미지 생성 → 카피/태그 생성 → 상세페이지 완성
-     (1)            (2)           (3)           (4)              (5)             (6)
-```
-
-| 단계 | 기능 | 사용 기술 |
+| 단계 | 기능 | 처리 위치 |
 |------|------|----------|
-| 1 | 상품 사진 업로드 (최대 10장, 800px 압축) | Client Canvas |
-| 2 | 가격 스티커/택 AI 감지 + 인페인팅 제거 | Stability AI |
-| 3 | 쿠팡 셀러 수, 최저가, 마진 계산 | 쿠팡 API + 크롤링 |
-| 4 | 원본 1장 → 상품 이미지 7장 자동 생성 | GPT Image 1.5 |
-| 5 | 상품 카피 + 상품명 5개 + 태그 20개 생성 | Claude Sonnet |
-| 6 | 이미지 배치 + 카피 → PNG/PDF 다운로드 | Canvas 렌더링 |
+| 1 | 상품 사진 업로드 (원본 저장, IndexedDB) | 클라이언트 |
+| 2 | 배경 제거 (선택) | 클라이언트 (ONNX) |
+| 3 | AI 모델 이미지 생성 (선택) | 서버 (Gemini) |
+| 4 | 상세페이지 콘텐츠 + 상품명 5개 + 태그 20개 통합 생성 | 서버 (Gemini 1회 호출) |
+| 5 | 실시간 미리보기 (HTML React 컴포넌트) | 클라이언트 |
+| 6 | PNG 다운로드 (하이브리드 렌더링) | 서버(본문) + 클라이언트(상하단 합성) |
+| 7 | 썸네일 1000x1000 크롭 + 다운로드 | 클라이언트 |
 
 ---
 
-## 렌더링 전략
+## 렌더링 전략 (하이브리드)
 
-상세페이지 렌더링은 **이중 전략**:
+| 역할 | 처리 위치 | 이유 |
+|------|----------|------|
+| **미리보기** | 클라이언트 (React HTML) | 실시간 반영, 원본 이미지 |
+| **본문 PNG** | 서버 (@napi-rs/canvas) | 한글 폰트 완벽 |
+| **상하단 이미지 합성** | 클라이언트 (canvas) | 원본 화질, 서버 전송 불필요 |
 
-- **미리보기 (클라이언트)**: 브라우저 Canvas로 실시간 렌더링. 텍스트 수정 시 즉시 반영
-- **최종 다운로드 (서버)**: `@napi-rs/canvas`로 서버사이드 PNG 생성. 한글 폰트 보장, 품질 일관성
+```
+다운로드 흐름:
+  서버 → 본문만 PNG (한글 완벽)
+  클라이언트 → 스토어소개(원본) + 본문PNG + 약관(원본) 세로 이어붙이기
+```
 
-미리보기에서 수정 → 만족하면 서버에 최종 렌더링 요청 → PNG/PDF 다운로드.
+---
+
+## 인증 & 사용량 제한
+
+### Google OAuth
+- NextAuth v4 + Google Provider
+- 로그인하지 않으면 서비스 이용 불가
+- 헤더 프로필 사진 클릭 → 사용량 패널 + 로그아웃
+
+### 일일 사용량 제한
+| 기능 | 제한 |
+|------|------|
+| 상세페이지 생성 | 10회/일 |
+| AI 이미지 생성 | 5회/일 |
+
+- 유저별(Google 계정) 카운트
+- 매일 한국 자정(KST) 초기화
+- 헤더 프로필 패널에서 잔여 횟수 확인 가능
 
 ---
 
@@ -204,60 +141,36 @@ npm run dev          # 개발 서버 (http://localhost:3000)
 npm run build        # 프로덕션 빌드
 npm run start        # 프로덕션 서버
 npm run lint         # ESLint
-npm run type-check   # TypeScript 타입 체크
 ```
 
 ---
 
-## 이후 계획: 아키텍처 개선안
+## 배포 (Vercel)
 
-### Phase 1 → Phase 2: 백엔드 분리
+### 환경변수 설정
 
-현재는 Next.js API Routes에 모든 서버 로직이 포함되어 있지만, 아래 상황 발생 시 Express 백엔드를 분리합니다:
-
-**분리 시점 판단 기준:**
-- API 라우트가 20개 이상으로 증가
-- 렌더링 타임아웃이 Vercel 제한(60초)을 초과
-- WebSocket, 장시간 폴링 등 서버리스에서 불가능한 기능 필요
-- 동시 사용자 증가로 서버리스 비용이 전용 서버보다 비싸질 때
-
-**분리 전략:**
-```
-[현재]  Next.js (프론트 + API Routes) → Vercel
-
-[이후]  Next.js (프론트만) → Vercel
-        Express (API 서버) → Railway / AWS
-```
-
-`services/` 폴더가 분리되어 있으므로, Express 라우트에서 동일한 서비스를 import하면 됩니다.
-API 라우트 문법만 변경 (`Response.json()` → `res.json()`), 비즈니스 로직은 변경 없음.
-
-### Phase 2 → Phase 3: 모바일 앱
-
-바코드 스캔, 현장 촬영 등 네이티브 기능이 필요해지면 React Native + Expo로 모바일 앱 추가:
+Vercel 대시보드 → Settings → Environment Variables:
 
 ```
-[이후]  Next.js (웹 대시보드) → Vercel
-        React Native (모바일 앱) → App Store / Play Store
-        Express (공통 API 서버) → Railway / AWS
+GEMINI_API_KEY=xxx
+GOOGLE_CLIENT_ID=xxx
+GOOGLE_CLIENT_SECRET=xxx
+NEXTAUTH_SECRET=xxx
+NEXTAUTH_URL=https://your-domain.vercel.app
 ```
 
-React 컴포넌트 로직과 Zustand 스토어는 React Native에서도 재사용 가능.
-`services/`, `types/`, `stores/`를 공유 패키지로 분리하여 모노레포 구성.
+### Google OAuth 리디렉션 URI
 
-### Phase 3+: 스케일업
+Google Cloud Console → OAuth 클라이언트 → 승인된 리디렉션 URI:
 
 ```
-[스케일]  Next.js → Vercel
-          NestJS (API 서버) → AWS ECS
-          Redis (캐시/세션) → ElastiCache
-          PostgreSQL → Supabase 또는 AWS RDS
-          S3 (이미지) → CloudFront CDN
-          Bull Queue (AI 작업 큐) → Redis 기반
+https://your-domain.vercel.app/api/auth/callback/google
 ```
 
-AI 이미지 생성 등 오래 걸리는 작업은 작업 큐로 분리.
-NestJS 전환은 Express 라우트 구조가 유사하여 점진적 마이그레이션 가능.
+로컬 개발도 하려면 추가:
+```
+http://localhost:3000/api/auth/callback/google
+```
 
 ---
 
@@ -266,7 +179,4 @@ NestJS 전환은 Express 라우트 구조가 유사하여 점진적 마이그레
 | 문서 | 설명 |
 |------|------|
 | [docs/onboarding.md](docs/onboarding.md) | 신규 개발자 온보딩 가이드 |
-| [docs/architecture.md](docs/architecture.md) | 아키텍처 상세 + 의사결정 배경 |
-| [docs/api-spec.md](docs/api-spec.md) | API 엔드포인트 명세 |
-| [docs/api-keys.md](docs/api-keys.md) | 외부 API 키 발급 방법 |
-| [docs/known-issues.md](docs/known-issues.md) | 크리티컬 이슈 + 기술 부채 |
+| [docs/issues.md](docs/issues.md) | 해결된 이슈 + 아키텍처 변경 기록 |
