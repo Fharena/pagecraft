@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect } from 'react'
+import { useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Header from '@/components/layout/Header'
@@ -61,7 +61,7 @@ export default function ProductNewPage() {
   }
 
   // PNG 다운로드 — 본문은 서버, 상하단 이미지는 클라이언트에서 원본 이어붙이기
-  const handleDownload = useCallback(async () => {
+  const handleDownload = async () => {
     if (!generatedContent) return
     showToast('이미지 생성 중...')
     const { compressForRender } = await import('@/lib/image')
@@ -146,7 +146,7 @@ export default function ProductNewPage() {
     } catch {
       showToast('다운로드 실패 — 다시 시도해주세요')
     }
-  }, [generatedContent, product.price, product.name])
+  }
 
   const handleCopyAll = () => {
     if (!generatedContent) return
