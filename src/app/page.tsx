@@ -25,7 +25,7 @@ export default function Home() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-bg">
       <div className="text-center space-y-6 max-w-md px-6">
-        <h1 className="text-4xl font-bold text-accent">PageCraft</h1>
+        <h1 className="text-4xl font-bold text-accent">MagicOne</h1>
         <p className="text-text3 text-lg">
           쿠팡 셀러를 위한 AI 상품 등록 자동화 도구
         </p>
