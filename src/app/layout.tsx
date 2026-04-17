@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import Script from 'next/script'
+import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
 import ToastContainer from '@/components/ui/Toast'
 import AuthProvider from '@/components/auth/AuthProvider'
@@ -34,6 +35,7 @@ export default function RootLayout({
           {children}
           <ToastContainer />
         </AuthProvider>
+        <Analytics />
       </body>
     </html>
   )
