@@ -10,7 +10,7 @@ const TABS = [
   { key: 'copy' as const, label: '📄 텍스트' },
   { key: 'title' as const, label: '✨ 상품명' },
   { key: 'tags' as const, label: '🏷 태그' },
-  { key: 'export' as const, label: '⬇ 내보내기' },
+  { key: 'export' as const, label: '🖼 썸네일' },
 ]
 
 export default function ResultTabs() {

@@ -70,15 +70,13 @@ const DetailPagePreview = forwardRef<HTMLDivElement, DetailPagePreviewProps>(
           </p>
         </div>
 
-        {/* 메인 이미지 — 1:1 cover */}
+        {/* 메인 이미지 — 가로 800px 맞춤, 세로는 원본 비율 유지 */}
         {images[0] && (
-          <div style={{ width: 800, height: 800, overflow: 'hidden' }}>
-            <img
-              src={images[0]}
-              alt="메인 상품 이미지"
-              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-            />
-          </div>
+          <img
+            src={images[0]}
+            alt="메인 상품 이미지"
+            style={{ width: '100%', height: 'auto', display: 'block' }}
+          />
         )}
 
         {/* 메인 카피 — 190px, #f8f7f4 */}
@@ -337,8 +335,8 @@ const DetailPagePreview = forwardRef<HTMLDivElement, DetailPagePreviewProps>(
           {content.caution && (
             <p
               style={{
-                fontSize: 12,
-                color: '#555568',
+                fontSize: 13,
+                color: '#ffffff',
                 textAlign: 'center',
                 margin: 0,
               }}

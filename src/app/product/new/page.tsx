@@ -20,15 +20,10 @@ import { useEditorStore } from '@/stores/editorStore'
 import { useAIGenerate } from '@/hooks/useAIGenerate'
 import { showToast } from '@/components/ui/Toast'
 
-const FEATURES = [
-  '방수', '방풍', '보온', '경량', '신축성', 'UV차단', '친환경', '남녀공용',
-  '캠핑', '일상착용', '선물용', '커플',
-]
-
 export default function ProductNewPage() {
   const { status } = useSession()
   const router = useRouter()
-  const { product, setProduct } = useProductStore()
+  const { product } = useProductStore()
   const { images, storeIntroImage, termsImage, setStoreIntroImage, setTermsImage } =
     useImageStore()
   const {
@@ -53,13 +48,6 @@ export default function ProductNewPage() {
         <p className="text-text3">로딩 중...</p>
       </div>
     )
-  }
-
-  const toggleFeature = (feature: string) => {
-    const features = product.features.includes(feature)
-      ? product.features.filter((f) => f !== feature)
-      : [...product.features, feature]
-    setProduct({ features })
   }
 
   // PNG 다운로드 — 본문은 서버, 상하단 이미지는 클라이언트에서 원본 이어붙이기
@@ -234,24 +222,6 @@ export default function ProductNewPage() {
               imageData={termsImage}
               onImageChange={setTermsImage}
             />
-          </div>
-
-          <div className="divider" />
-
-          {/* 강조 특징 */}
-          <div className="panel-section">
-            <div className="panel-section-title">강조 특징</div>
-          </div>
-          <div className="chip-row">
-            {FEATURES.map((feat) => (
-              <button
-                key={feat}
-                className={`chip${product.features.includes(feat) ? ' on' : ''}`}
-                onClick={() => toggleFeature(feat)}
-              >
-                {feat}
-              </button>
-            ))}
           </div>
 
           <div className="divider" />

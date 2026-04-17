@@ -141,60 +141,10 @@ function ThumbnailEditor() {
 }
 
 export default function ExportPanel() {
-  const { generatedContent, generatedTitles, generatedTags } = useEditorStore()
-
-  const copyAll = () => {
-    if (!generatedContent) return
-    const parts: string[] = []
-    parts.push(`[상품명] ${generatedContent.product_name}`)
-    parts.push(`[서브타이틀] ${generatedContent.subtitle}`)
-    parts.push(`[메인카피] ${generatedContent.main_copy}`)
-    parts.push('')
-    parts.push('[판매포인트]')
-    generatedContent.selling_points.forEach((sp, i) => parts.push(`${i + 1}. ${sp}`))
-    parts.push('')
-    parts.push('[상세설명]')
-    parts.push(generatedContent.description)
-    parts.push('')
-    parts.push('[스펙]')
-    generatedContent.specs.forEach((s) => parts.push(`${s.key}: ${s.value}`))
-    parts.push('')
-    parts.push(`[키워드] ${generatedContent.keywords.join(', ')}`)
-    parts.push(`[주의사항] ${generatedContent.caution}`)
-    if (generatedTitles.length > 0) {
-      parts.push('')
-      parts.push('[최적화 상품명]')
-      generatedTitles.forEach((t) => parts.push(`#${t.rank} (${t.strategy}) ${t.title}`))
-    }
-    if (generatedTags.length > 0) {
-      parts.push('')
-      parts.push(`[태그] ${generatedTags.map((t) => t.text).join(', ')}`)
-    }
-    navigator.clipboard.writeText(parts.join('\n'))
-    showToast('전체 텍스트 복사됨')
-  }
-
   return (
     <div className="space-y-2">
-      <p className="text-[10px] font-bold text-text3 uppercase tracking-[2px] mb-[14px]">내보내기 옵션</p>
-
-      <button
-        className="w-full flex items-center gap-3 p-[14px] bg-surface2 rounded-[10px] border border-border hover:border-border2 transition-all duration-150 cursor-pointer text-left mb-2"
-        onClick={copyAll}
-        disabled={!generatedContent}
-      >
-        <div className="w-9 h-9 rounded-[8px] bg-surface3 flex items-center justify-center text-[18px] shrink-0">📋</div>
-        <div>
-          <p className="text-[13px] font-semibold text-text mb-[2px]">전체 텍스트 복사</p>
-          <p className="text-[11px] text-text2">모든 내용 클립보드 복사</p>
-        </div>
-      </button>
-
-      {/* 썸네일 섹션 */}
-      <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
-        <p className="text-[10px] font-bold text-text3 uppercase tracking-[2px] mb-[10px]">썸네일 (1000×1000)</p>
-        <ThumbnailEditor />
-      </div>
+      <p className="text-[10px] font-bold text-text3 uppercase tracking-[2px] mb-[14px]">썸네일 (1000×1000)</p>
+      <ThumbnailEditor />
     </div>
   )
 }

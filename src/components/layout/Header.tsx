@@ -108,24 +108,25 @@ export default function Header() {
         style={{
           fontFamily: 'var(--mono)',
           fontSize: 10,
-          color: 'var(--text3)',
-          background: 'var(--surface2)',
+          fontWeight: 700,
+          color: '#0c0c10',
+          background: 'var(--accent)',
           padding: '3px 10px',
           borderRadius: 4,
-          border: '1px solid var(--border)',
+          border: '1px solid var(--accent)',
           cursor: 'pointer',
-          transition: 'border-color 0.15s, color 0.15s',
+          transition: 'all 0.15s',
           whiteSpace: 'nowrap',
         }}
         onMouseEnter={(e) => {
           const btn = e.currentTarget
-          btn.style.borderColor = 'var(--red)'
-          btn.style.color = 'var(--red)'
+          btn.style.background = 'var(--accent2)'
+          btn.style.borderColor = 'var(--accent2)'
         }}
         onMouseLeave={(e) => {
           const btn = e.currentTarget
-          btn.style.borderColor = 'var(--border)'
-          btn.style.color = 'var(--text3)'
+          btn.style.background = 'var(--accent)'
+          btn.style.borderColor = 'var(--accent)'
         }}
       >
         ↺ 새 작업
@@ -156,18 +157,6 @@ export default function Header() {
             }}
           />
         </div>
-      </div>
-
-      {/* 뱃지 */}
-      <div
-        style={{
-          fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--text3)',
-          background: 'var(--surface2)',
-          padding: '3px 10px', borderRadius: 4,
-          border: '1px solid var(--border)',
-        }}
-      >
-        패션 · 의류 · 잡화
       </div>
 
       {/* 프로필 토글 */}

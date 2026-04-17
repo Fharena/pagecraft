@@ -207,10 +207,12 @@ export async function renderDetailPage(req: RenderRequest): Promise<Buffer> {
   ctx.fillText(data.subtitle || '', W / 2, y + 80)
   y += 110
 
-  // Main product image
+  // Main product image — 가로 W 맞춤, 세로는 원본 비율 유지
   if (loadedImages[0]) {
-    drawImageCover(ctx, loadedImages[0], 0, y, W, W)
-    y += W
+    const img = loadedImages[0]
+    const imgH = Math.round((W / img.width) * img.height)
+    ctx.drawImage(img, 0, y, W, imgH)
+    y += imgH
   }
 
   // Main copy section
@@ -350,8 +352,8 @@ export async function renderDetailPage(req: RenderRequest): Promise<Buffer> {
     ctx.font = `bold 24px KoreanBold, sans-serif`
     ctx.textAlign = 'center'
     ctx.fillText(`₩${Number(price).toLocaleString()}`, W / 2, y + 45)
-    ctx.fillStyle = '#555568'
-    ctx.font = `12px KoreanRegular, sans-serif`
+    ctx.fillStyle = '#ffffff'
+    ctx.font = `13px KoreanRegular, sans-serif`
     ctx.fillText(data.caution || '', W / 2, y + 72)
     y += 90
   }
@@ -378,7 +380,7 @@ function calculateHeight(
 
   if (storeIntro) h += Math.round((W / storeIntro.width) * storeIntro.height)
   h += 110 // header
-  if (images[0]) h += W // main image
+  if (images[0]) h += Math.round((W / images[0].width) * images[0].height) // main image (원본 비율)
   h += 190 // main copy
   h += 270 // selling points
   if (data.description) h += 180 // story
