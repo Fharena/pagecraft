@@ -340,19 +340,22 @@ export async function removeBackgroundGemini(imageDataUrl: string): Promise<stri
   const apiKey = getApiKey()
   const base64 = imageDataUrl.replace(/^data:image\/\w+;base64,/, '')
 
-  const prompt = `Your task: Remove only the background of this image and replace it with pure white (#FFFFFF). Keep EVERYTHING about the product(s) exactly as they appear in the original image.
+  const prompt = `TASK: Replace the ENTIRE background of this image with a solid pure white color (#FFFFFF, RGB 255,255,255). Keep the product(s) identical to the original.
 
-ABSOLUTE RULES — DO NOT VIOLATE:
-1. PRESERVE EVERY PRODUCT: If there are 2 shoes, output 2 shoes. If there are 3 items, output 3 items. Count them and keep all of them.
-2. PRESERVE EXACT POSE/PLACEMENT: If a shoe lies on its side, keep it on its side. If it stands upright, keep it upright. Do not "fix" or "reorient" the product.
-3. PRESERVE EXACT POSITION: Products must stay in the exact same location within the frame. Do not re-center or re-arrange.
-4. PRESERVE EXACT APPEARANCE: Identical shape, color, logos, stitching, laces, sole, texture, lighting direction. Do not regenerate or redraw — this is a background-only edit.
-5. REMOVE ONLY THE BACKGROUND AND SUPPORT OBJECTS: The ground, wall, boxes, stands, pedestals, paper, fabric props, hands, mannequins, price tags, shadows on ground — remove these and fill with pure white.
-6. Do NOT create new angles, do NOT generate variations, do NOT "improve" the product.
+OUTPUT BACKGROUND MUST BE: Plain white only. No table, no floor, no wall, no shelves, no store, no furniture, no other products in background, no gradients, no textures, no shadows on ground. Just solid white everywhere except the product.
 
-Think of this as erasing the background in Photoshop with a perfect mask — the product pixels must remain unchanged.
+PRODUCT PRESERVATION:
+- Keep ALL products visible in original image. If 2 shoes, output 2 shoes. If 3 items, output 3 items.
+- Keep their exact pose, angle, position, proportions, colors, logos, and textures identical to original.
+- Do not move, rotate, or reorient anything.
 
-Output: The exact same product(s) in the exact same position and pose, with only the background replaced by pure white.`
+WHAT TO REMOVE:
+- All background scenery (store, shelves, tables, floors, walls)
+- All supporting objects (boxes the product sits on, stands, pedestals, hands, mannequins)
+- Shadows cast on the ground
+- Any text, labels, or tags not on the product itself
+
+Final result: exact same product(s) in same position, floating on pure solid white (#FFFFFF). Absolutely no other visual elements in the background.`
 
   const body = {
     contents: [{
