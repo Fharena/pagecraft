@@ -342,6 +342,9 @@ export async function removeBackgroundGemini(imageDataUrl: string): Promise<stri
 
   const prompt = `TASK: Replace the ENTIRE background of this image with a solid pure white color (#FFFFFF, RGB 255,255,255). Keep the product(s) identical to the original.
 
+OUTPUT QUALITY: High resolution (at least 1024x1024px), sharp product details, no compression artifacts. Preserve the original image's pixel fidelity.
+
+
 OUTPUT BACKGROUND MUST BE: Plain white only. No table, no floor, no wall, no shelves, no store, no furniture, no other products in background, no gradients, no textures, no shadows on ground. Just solid white everywhere except the product.
 
 PRODUCT PRESERVATION:
@@ -410,7 +413,8 @@ Lighting: professional studio, soft shadows
 Style: high-end fashion e-commerce product photo
 
 The product must be the clear focal point. No text, watermark, or logo.
-Must look like a real photograph, not AI-generated.`
+Must look like a real photograph, not AI-generated.
+OUTPUT QUALITY: High resolution (at least 1024x1024px), sharp details, professional photo quality.`
 
   const parts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [{ text: prompt }]
 

@@ -5,7 +5,7 @@ import { useProductStore } from '@/stores/productStore'
 import { useImageStore } from '@/stores/imageStore'
 import { useUsageStore } from '@/stores/usageStore'
 import { api, ApiError } from '@/lib/api'
-import { compressForAI } from '@/lib/image'
+import { compressForImageGen } from '@/lib/image'
 
 export default function AiModelToggle() {
   const { product } = useProductStore()
@@ -26,9 +26,9 @@ export default function AiModelToggle() {
     setGenerating(true)
     setErrorMsg('')
     try {
-      // AI에는 최대 5장, 400px/0.5 품질로 압축해서 전송 (payload 절약)
+      // 이미지 생성용 — 1024px/0.9로 품질 보존, 최대 3장 (payload 절약)
       const smallImages = await Promise.all(
-        images.slice(0, 5).map((img) => compressForAI(img.dataUrl))
+        images.slice(0, 3).map((img) => compressForImageGen(img.dataUrl))
       )
       const result = await api.post<{ image: string }>('/api/image/generate', {
         productName: product.name,

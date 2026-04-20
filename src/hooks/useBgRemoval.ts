@@ -4,7 +4,7 @@ import { useState, useCallback } from 'react'
 import { useImageStore } from '@/stores/imageStore'
 import { useUsageStore } from '@/stores/usageStore'
 import { api } from '@/lib/api'
-import { compressForAI, whitenNearWhite } from '@/lib/image'
+import { compressForImageGen, whitenNearWhite } from '@/lib/image'
 import { showToast } from '@/components/ui/Toast'
 
 export function useBgRemoval() {
@@ -17,7 +17,8 @@ export function useBgRemoval() {
     setIsProcessing(true)
     setProgress('배경 제거 중...')
     try {
-      const compressed = await compressForAI(dataUrl)
+      // 이미지 생성용 — 1024px/0.9로 Gemini 출력 품질 보존
+      const compressed = await compressForImageGen(dataUrl)
       const res = await api.post<{ image: string }>('/api/image/bg-remove', {
         image: compressed,
       })

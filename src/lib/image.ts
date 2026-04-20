@@ -102,9 +102,14 @@ export function resizeForUpload(dataUrl: string, maxSize: number, quality: numbe
   })
 }
 
-/** AI 분석용 — 400px, 품질 0.5 */
+/** AI 텍스트 분석용 — 400px, 품질 0.5 (Gemini가 내용만 파악) */
 export function compressForAI(dataUrl: string) {
   return resizeForUpload(dataUrl, 400, 0.5)
+}
+
+/** AI 이미지 생성/배경제거용 — 1024px, 품질 0.9 (Gemini 출력 품질 보존) */
+export function compressForImageGen(dataUrl: string) {
+  return resizeForUpload(dataUrl, 1024, 0.9)
 }
 
 /** 서버 렌더링 전송용 — 780px, 품질 0.75 (Vercel 4.5MB 대응) */
