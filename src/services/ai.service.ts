@@ -340,7 +340,15 @@ export async function removeBackgroundGemini(imageDataUrl: string): Promise<stri
   const apiKey = getApiKey()
   const base64 = imageDataUrl.replace(/^data:image\/\w+;base64,/, '')
 
-  const prompt = `Remove the background from this product image. Keep only the main product/subject intact with clean edges. The output should have a pure white background (#FFFFFF). Preserve all details, colors, and textures of the product itself. Do not modify, crop, or alter the product in any way—only replace the background.`
+  const prompt = `Extract ONLY the single main product from this image and place it on a pure white background (#FFFFFF).
+
+CRITICAL RULES:
+- Keep ONLY the product itself. Remove ALL surrounding objects including: packaging boxes, display stands, platforms, pedestals, paper, fabric, hands, mannequins, shadows, reflections, props, or any supporting items.
+- If the product is on top of a box, display, or stand — REMOVE the box/display completely. Only the product remains.
+- If there are multiple items, keep only the most prominent/central product.
+- Preserve the product's exact details, colors, textures, and proportions.
+- Do not crop, rotate, or alter the product.
+- Output: product isolated on pure white background.`
 
   const body = {
     contents: [{
