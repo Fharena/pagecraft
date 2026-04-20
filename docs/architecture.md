@@ -1,114 +1,283 @@
-# 아키텍처
+# PageCraft 아키텍처
 
-## 전체 구조
+> 현재 실제 구현 기준 (데모 MVP 버전)
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                      Vercel                              │
-│  ┌──────────────────┐  ┌──────────────────────────────┐  │
-│  │   Next.js App    │  │     API Routes               │  │
-│  │                  │  │                              │  │
-│  │  React 컴포넌트   │──│  /api/ai/*     → ai.service │  │
-│  │  Zustand 스토어   │  │  /api/image/*  → image.svc  │  │
-│  │  Canvas 미리보기  │  │  /api/render/* → render.svc │  │
-│  │                  │  │  /api/market/* → market.svc │  │
-│  └──────────────────┘  └──────────┬───────────────────┘  │
-└───────────────────────────────────┼──────────────────────┘
-                                    │
-                    ┌───────────────┼───────────────┐
-                    ▼               ▼               ▼
-            ┌──────────┐    ┌──────────┐    ┌──────────┐
-            │ Supabase │    │  AI APIs  │    │  쿠팡    │
-            │          │    │          │    │          │
-            │ Postgres │    │ Claude   │    │ WING API │
-            │ Storage  │    │ GPT Img  │    │ 크롤링   │
-            │ Auth     │    │ Stab.AI  │    │          │
-            └──────────┘    └──────────┘    └──────────┘
-```
+---
 
-## 왜 이 구조인가?
+## 1. 전체 구조
 
-### Next.js 단일 프로젝트 (프론트 + 백엔드 통합)
+```mermaid
+flowchart TB
+  subgraph Client["🖥 Client (브라우저)"]
+    UI[React UI]
+    IndexedDB[(IndexedDB<br/>상품 이미지)]
+    LocalStorage[(localStorage<br/>스토어/약관 이미지)]
+    Preview[DetailPagePreview<br/>실시간 HTML 미리보기]
+    Compose[canvas 합성<br/>상하단 이미지 + 본문 PNG]
+  end
 
-**결정:** 별도 Express 서버를 두지 않고 Next.js API Routes로 백엔드 통합.
+  subgraph Vercel["☁ Vercel (Next.js)"]
+    Auth[NextAuth<br/>Google OAuth]
+    APIs["API Routes"]
+    Canvas["@napi-rs/canvas<br/>본문 PNG 렌더"]
+  end
 
-**이유:**
-- 현재 API 라우트가 10개 미만. 별도 서버는 오버스펙
-- 배포 포인트 1개 (Vercel). 로컬에서도 서버 1개만 실행
-- CORS 설정 불필요 (같은 origin)
-- 환경 변수 관리 1곳
+  subgraph External["외부 서비스"]
+    Gemini[Gemini AI]
+    Redis[(Upstash Redis<br/>크레딧 저장)]
+    Sentry[Sentry]
+    Analytics[Vercel Analytics]
+  end
 
-**리스크:**
-- Vercel 서버리스 타임아웃 (무료 10초, Pro 60초). 렌더링이 오래 걸리면 문제
-- WebSocket 미지원 (Vercel 서버리스 한계). 실시간 진행률은 폴링으로 대체
-
-**탈출 전략:**
-- `services/`에 비즈니스 로직이 분리되어 있으므로, Express로 옮길 때 서비스 코드 변경 없음
-- API 라우트 문법만 변환 (`Response.json()` → `res.json()`)
-
-### services/ 분리 (라우트 ↔ 로직)
-
-```
-[API Route]                        [Service]
-app/api/ai/copy/route.ts    →     services/ai.service.ts
-  - req 파싱                        - Claude API 호출
-  - res 반환                        - 프롬프트 빌딩
-  - 인증 체크                        - 응답 파싱
+  UI --> IndexedDB
+  UI --> LocalStorage
+  UI --> Preview
+  UI --> Auth
+  UI --> APIs
+  APIs --> Gemini
+  APIs --> Redis
+  APIs --> Canvas
+  Canvas --> Compose
+  Client -.-> Sentry
+  Client -.-> Analytics
 ```
 
-**이유:**
-- API 라우트에 로직이 섞이면 테스트 불가, 재사용 불가
-- 이후 Express 분리 시 services/를 그대로 가져감
-- 같은 서비스를 여러 라우트에서 호출 가능
+---
 
-### Zustand (상태 관리)
+## 2. 기술 스택
 
-**결정:** Redux, Context 대신 Zustand.
+| 레이어 | 기술 | 비고 |
+|--------|------|------|
+| 프레임워크 | Next.js 16 (App Router) | 프론트 + API Routes 통합 |
+| 언어 | TypeScript strict | 전체 적용 |
+| 스타일 | Tailwind CSS v4 | `@theme` 디자인 토큰 |
+| 상태 관리 | Zustand v5 | persist + 수동 hydrate |
+| 인증 | NextAuth v4 + Google OAuth | JWT 세션 쿠키 |
+| AI 텍스트 | Gemini 2.5 Flash | 통합 생성 (content + titles + tags) |
+| AI 이미지 | Gemini 2.5 Flash Image | 모델 생성, 배경 제거 |
+| 서버 렌더링 | @napi-rs/canvas | 본문 PNG, 한글 폰트 보장 |
+| 크레딧 저장 | Upstash Redis (ioredis) | `KV_REDIS_URL` TCP 연결 |
+| 이미지 저장 | IndexedDB (idb 래퍼) | 용량 무제한 |
+| 에러 모니터링 | Sentry v10 | `instrumentation-client.ts` |
+| 배포 | Vercel | main 자동 배포 |
 
-**이유:**
-- 2KB, 보일러플레이트 제로
-- 컴포넌트 외부에서 접근 가능 (`useStore.getState()`)
-- TypeScript 네이티브
-- `productStore`, `imageStore`, `editorStore`로 관심사 분리
+---
 
-**비교:**
-- Redux → 이 규모에 액션/리듀서 구조가 과함
-- Context → 상태 변경 시 모든 Consumer 리렌더링
+## 3. 렌더링 전략 (하이브리드)
 
-### 렌더링 이중 전략
+실시간 미리보기는 HTML로, PNG 다운로드는 서버+클라이언트 합성.
 
-**결정:** 미리보기는 클라이언트, 다운로드는 서버.
+### 3.1 미리보기 (클라이언트)
+- `DetailPagePreview.tsx` — 800px 고정 React 컴포넌트
+- `generatedContent` 변경 시 자동 리렌더링
+- 이미지는 IndexedDB에서 원본 그대로 사용
 
-**이유:**
-- 클라이언트: 텍스트 수정 시 실시간 반영. UX 핵심
-- 서버: 한글 폰트 보장, 6000px+ 세로 이미지 안정적 생성, 결과 일관성
+### 3.2 PNG 다운로드 (하이브리드)
+```
+서버: /api/render → @napi-rs/canvas → 본문만 PNG (헤더~가격푸터)
+  ↓
+클라이언트: canvas로 세로 합성
+  [스토어 소개 원본] + [본문 PNG] + [약관 원본]
+```
 
-**이전 방식의 문제:**
-기존 pagecraft-pro는 서버 전용. 텍스트 한 글자 수정해도 API 왕복 필요.
+**이유**
+- 본문(한글 텍스트 많음) → 서버 렌더로 폰트 품질 보장
+- 상하단 이미지 → 클라이언트에서 원본 그대로 (재압축 없음)
+- Vercel body 4.5MB 제한 회피 (상하단 이미지 서버 전송 안 함)
 
-### Supabase (DB + Storage + Auth)
+---
 
-**결정:** Firebase 대신 Supabase.
+## 4. AI 통합 생성 플로우
 
-**이유:**
-- 상품/가격 데이터는 관계형(SQL)이 적합. JOIN, 집계, 필터링
-- Firebase는 NoSQL이라 복잡한 쿼리에 부적합
-- 무료 500MB DB + 1GB 스토리지 (MVP 충분)
-- S3 호환 스토리지 → 추후 AWS S3/Cloudflare R2로 이전 가능
-- 표준 PostgreSQL → 벤더 종속 낮음
+```
+상세페이지 생성 버튼
+  ↓
+클라이언트: 이미지 5장 400px/0.5 품질 압축 (compressForAI)
+  ↓
+POST /api/ai/copy
+  ↓
+requireAuth('generate') — 인증 + 크레딧 체크 (1 크레딧)
+  ↓
+ai.service.generateAll() — Gemini 통합 프롬프트
+  → content + titles 5개 + tags 20개
+  ↓
+safeParseJSON — 깨진 JSON 보정
+  ↓
+크레딧 차감 (recordUsage) + 응답
+  ↓
+클라이언트: editorStore에 분배 + usageStore.fetchUsage()
+```
 
-## 폴더별 책임
+---
 
-| 폴더 | 책임 | 의존 방향 |
-|------|------|----------|
-| `app/` | 페이지 라우팅, UI 조합 | components, hooks, stores 사용 |
-| `app/api/` | HTTP 요청/응답 처리 | services만 호출 |
-| `components/` | UI 렌더링 + 사용자 인터랙션 | hooks, stores 사용 |
-| `services/` | 비즈니스 로직, 외부 API 호출 | lib, types 사용. **독립적** |
-| `stores/` | 전역 상태 관리 | types만 사용 |
-| `hooks/` | 컴포넌트 로직 재사용 | stores, lib 사용 |
-| `lib/` | 순수 유틸리티 | **의존 없음** |
-| `types/` | 타입 정의 | **의존 없음** |
-| `templates/` | 렌더링 레이아웃 설정 | types만 사용 |
+## 5. 크레딧 시스템
 
-**핵심 규칙:** `services/`는 React에 의존하지 않습니다. Express로 옮겨도 그대로 동작해야 합니다.
+### 구조
+- **월 500 크레딧**, KST 매달 1일 00:00 초기화
+- 기능별 차등: 상세 1 / 이미지 5 / 배경제거 5
+- Redis TTL 32일 자동 만료
+
+### 저장소 키
+```
+credits:{userId}:{YYYY-MM} = 이번 달 누적 사용량
+```
+
+### 폴백
+- `KV_REDIS_URL` 없으면 메모리 Map (개발용, 서버 재시작 시 초기화)
+
+### 관리자
+- `ADMIN_EMAILS` 쉼표 구분 이메일 → 크레딧 무제한
+
+---
+
+## 6. 저장소 전략
+
+| 데이터 | 저장소 | 이유 |
+|--------|--------|------|
+| 상품 이미지 | IndexedDB | sessionStorage 5MB 제한 초과 |
+| 스토어/약관 이미지 | localStorage | 재사용 빈도 높음, 영구 보존 |
+| 제품 정보 | sessionStorage (zustand) | 세션 중 유지 |
+| AI 생성 결과 | sessionStorage (zustand) | 세션 중 유지 |
+| 유저 크레딧 | Upstash Redis | 서버리스 인스턴스 간 공유 |
+| 세션 쿠키 | NextAuth JWT | HTTP-only 암호화 |
+
+---
+
+## 7. 인증 플로우
+
+```
+유저 첫 접속 → / 페이지
+  ↓
+"Google 로그인" 클릭 → signIn('google')
+  ↓
+Google OAuth → /api/auth/callback/google
+  ↓
+NextAuth JWT 세션 쿠키 발급 → /product/new 리다이렉트
+  ↓
+이후 API 호출에 쿠키 자동 포함
+  → getServerSession으로 서버 검증
+```
+
+### 개발 모드 스킵
+```env
+SKIP_AUTH=true                 # 서버 API 인증 스킵
+NEXT_PUBLIC_SKIP_AUTH=true     # 클라이언트 체크 스킵
+```
+
+---
+
+## 8. API 라우트 요약
+
+| 경로 | 메서드 | 용도 | 크레딧 |
+|------|--------|------|-------|
+| `/api/ai/copy` | POST | 통합 AI 생성 | 1 |
+| `/api/image/generate` | POST | AI 모델 이미지 | 5 |
+| `/api/image/bg-remove` | POST | 배경 제거 | 5 |
+| `/api/render` | POST | PNG 본문 렌더 | 0 |
+| `/api/usage` | GET | 크레딧 조회 | 0 |
+| `/api/market/suggest` | GET | 쿠팡 인기 검색어 | 0 |
+| `/api/auth/[...nextauth]` | GET/POST | NextAuth 콜백 | 0 |
+
+---
+
+## 9. 폴더 구조 (실제)
+
+```
+src/
+├── app/
+│   ├── api/
+│   │   ├── ai/copy/route.ts          # 통합 생성
+│   │   ├── image/
+│   │   │   ├── generate/route.ts     # AI 모델 이미지
+│   │   │   └── bg-remove/route.ts    # 배경 제거
+│   │   ├── render/route.ts           # 서버 PNG
+│   │   ├── usage/route.ts            # 크레딧 조회
+│   │   └── auth/[...nextauth]/route.ts
+│   ├── product/new/page.tsx          # 메인 에디터
+│   ├── layout.tsx                    # AuthProvider, 테마 init
+│   └── page.tsx                      # 랜딩 (Google 로그인)
+│
+├── components/
+│   ├── auth/AuthProvider.tsx
+│   ├── editor/
+│   │   ├── DetailPagePreview.tsx     # 실시간 HTML 미리보기
+│   │   ├── CopyPanel.tsx             # 텍스트 수정 + 고시정보
+│   │   ├── TitlePanel.tsx, TagPanel.tsx
+│   │   ├── ExportPanel.tsx           # 썸네일 크롭
+│   │   └── ResultTabs.tsx
+│   ├── image/
+│   │   ├── ImageUploader.tsx, ImageGrid.tsx
+│   │   ├── BgRemovalToggle.tsx, AiModelToggle.tsx
+│   │   ├── CropEditor.tsx
+│   │   └── SingleImageUpload.tsx
+│   ├── layout/Header.tsx, ProductForm.tsx, StatusBar.tsx
+│   └── ui/ (Button, Input, Modal, Toast, Card)
+│
+├── hooks/
+│   ├── useAIGenerate.ts
+│   ├── useBgRemoval.ts
+│   ├── useImageUpload.ts
+│   └── useMarketData.ts
+│
+├── lib/
+│   ├── api.ts                        # fetch 래퍼
+│   ├── apiAuth.ts                    # requireAuth + 크레딧
+│   ├── auth.ts                       # NextAuth 설정
+│   ├── rateLimit.ts                  # Redis + 크레딧 로직
+│   ├── errorMessage.ts               # 사용자 친화 메시지
+│   ├── image.ts                      # 압축/리사이즈/배경화이트닝
+│   └── imageDB.ts                    # IndexedDB 래퍼
+│
+├── services/
+│   ├── ai.service.ts                 # Gemini 호출 + safeParseJSON
+│   ├── render.service.ts             # @napi-rs/canvas
+│   └── market.service.ts
+│
+├── stores/
+│   ├── productStore.ts
+│   ├── imageStore.ts                 # IndexedDB 연동
+│   ├── editorStore.ts                # AI 결과
+│   └── usageStore.ts                 # 크레딧 UI
+│
+└── types/
+    ├── ai.ts, market.ts, product.ts
+    └── next-auth.d.ts
+```
+
+---
+
+## 10. 환경변수
+
+```env
+# 필수
+GEMINI_API_KEY=                  # Gemini 유료 plan 권장
+GOOGLE_CLIENT_ID=                # OAuth
+GOOGLE_CLIENT_SECRET=
+NEXTAUTH_SECRET=                 # openssl rand -base64 32
+NEXTAUTH_URL=                    # 배포 도메인
+
+# Redis (크레딧)
+KV_REDIS_URL=                    # Vercel Marketplace Redis
+
+# 선택
+ADMIN_EMAILS=                    # 쉼표 구분, 무제한 계정
+NEXT_PUBLIC_SENTRY_DSN=
+SENTRY_DSN=
+
+# 개발/Preview
+SKIP_AUTH=true
+NEXT_PUBLIC_SKIP_AUTH=true
+```
+
+---
+
+## 11. 주요 의사결정 배경
+
+| 결정 | 이유 |
+|------|------|
+| 서버 canvas 유지 | 한글 폰트 품질 (html2canvas/dom-to-image-more 한계) |
+| 클라이언트 미리보기 HTML | 실시간 반영 + Vercel body 제한 회피 |
+| Gemini 배경 제거 | 코드 일관성 (추후 Replicate BRIA 전환 예정) |
+| ioredis 직접 연결 | Vercel Marketplace Redis 대응 (REST API 없음) |
+| 월 단일 크레딧 풀 | 유저별 조합 자유도 우선 (일일 분리 quota 대비) |
+| IndexedDB 이미지 저장 | sessionStorage 5MB 제한 회피 |

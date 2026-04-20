@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { generateModelImage } from '@/services/ai.service'
 import { requireAuth, recordUsage } from '@/lib/apiAuth'
+import { friendlyErrorMessage } from '@/lib/errorMessage'
 import type { AIModelImageRequest } from '@/types/ai'
 
 export async function POST(req: Request) {
@@ -23,7 +24,7 @@ export async function POST(req: Request) {
   } catch (err) {
     console.error('AI 모델 이미지 생성 오류:', err)
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : '이미지 생성 실패' },
+      { error: friendlyErrorMessage(err) },
       { status: 500 },
     )
   }

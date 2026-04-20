@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { renderDetailPage } from '@/services/render.service'
 import { requireAuth } from '@/lib/apiAuth'
+import { friendlyErrorMessage } from '@/lib/errorMessage'
 import type { RenderRequest } from '@/types/ai'
 
 export const maxDuration = 60
@@ -30,7 +31,7 @@ export async function POST(req: Request) {
   } catch (err) {
     console.error('렌더링 오류:', err)
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : '렌더링 실패' },
+      { error: friendlyErrorMessage(err) },
       { status: 500 },
     )
   }
