@@ -46,7 +46,7 @@ export default function StatusBar() {
       <span>플랫폼: {product.platform || '쿠팡'}</span>
 
       {/* Version — pushed to right */}
-      <span style={{ marginLeft: 'auto' }}>PageCraft Pro v2.0</span>
+      <span style={{ marginLeft: 'auto' }}>PageCraft Pro v1.0</span>
     </footer>
   )
 }

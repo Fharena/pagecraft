@@ -112,6 +112,48 @@ export function compressForRender(dataUrl: string) {
   return resizeForUpload(dataUrl, 780, 0.75)
 }
 
+/**
+ * 배경 제거 결과 후처리 — 연한 회색/흰색 배경을 순수 #FFFFFF로 강제
+ * Gemini가 완벽한 흰색을 못 만드는 문제 해결
+ *
+ * @param threshold 이 값 이상인 RGB는 순수 흰색으로 치환 (기본 245)
+ */
+export function whitenNearWhite(dataUrl: string, threshold: number = 245): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => {
+      const canvas = document.createElement('canvas')
+      canvas.width = img.width
+      canvas.height = img.height
+      const ctx = canvas.getContext('2d')!
+      ctx.drawImage(img, 0, 0)
+
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+      const data = imageData.data
+
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i]
+        const g = data[i + 1]
+        const b = data[i + 2]
+        // RGB 3채널 모두 threshold 이상 + 비교적 균일(회색조)이면 순수 흰색으로
+        const minVal = Math.min(r, g, b)
+        const maxVal = Math.max(r, g, b)
+        const isNearWhite = minVal >= threshold && (maxVal - minVal) < 30
+        if (isNearWhite) {
+          data[i] = 255
+          data[i + 1] = 255
+          data[i + 2] = 255
+        }
+      }
+
+      ctx.putImageData(imageData, 0, 0)
+      resolve(canvas.toDataURL('image/png'))
+    }
+    img.onerror = reject
+    img.src = dataUrl
+  })
+}
+
 export function generateId(): string {
   return Math.random().toString(36).substring(2, 9)
 }

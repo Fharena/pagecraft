@@ -1,19 +1,19 @@
 import { getServerSession } from 'next-auth'
 import { NextResponse } from 'next/server'
 import { authOptions } from './auth'
-import { checkRateLimit, incrementUsage } from './rateLimit'
+import { checkCredits, consumeCredits, type CreditType } from './rateLimit'
 
 /**
- * API 라우트 인증 + 사용량 체크
- * 사용법: const { session, error } = await requireAuth(req, 'generate')
+ * API 라우트 인증 + 크레딧 체크
+ * 사용법: const { session, error } = await requireAuth('generate')
  */
 export async function requireAuth(
-  type?: 'generate' | 'image'
+  type?: CreditType
 ): Promise<{
   session: { user: { id: string; email?: string | null; name?: string | null } } | null
   error: NextResponse | null
 }> {
-  // 개발 모드: SKIP_AUTH=true면 인증+제한 스킵
+  // 개발 모드: SKIP_AUTH=true면 인증+크레딧 스킵
   if (process.env.SKIP_AUTH === 'true') {
     return {
       session: { user: { id: 'dev', email: 'dev@local', name: 'Developer' } },
@@ -33,17 +33,21 @@ export async function requireAuth(
     }
   }
 
-  // 사용량 체크 (type이 있을 때만)
   if (type) {
-    const { allowed, remaining, limit } = await checkRateLimit(session.user.id, type, session.user.email)
+    const { allowed, remaining, limit, cost } = await checkCredits(
+      session.user.id,
+      type,
+      session.user.email,
+    )
     if (!allowed) {
       return {
         session: null,
         error: NextResponse.json(
           {
-            error: `일일 사용 한도(${limit}회)에 도달했습니다. 내일 다시 이용해주세요.`,
-            remaining: 0,
+            error: `크레딧이 부족합니다. (필요 ${cost} / 남은 ${remaining} / 월 ${limit})`,
+            remaining,
             limit,
+            cost,
           },
           { status: 429 }
         ),
@@ -55,8 +59,8 @@ export async function requireAuth(
 }
 
 /**
- * 사용 후 카운트 증가
+ * 기능 실행 후 크레딧 차감
  */
-export async function recordUsage(userId: string, type: 'generate' | 'image') {
-  await incrementUsage(userId, type)
+export async function recordUsage(userId: string, type: CreditType) {
+  await consumeCredits(userId, type)
 }

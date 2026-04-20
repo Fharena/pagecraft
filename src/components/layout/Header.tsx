@@ -7,8 +7,8 @@ import { useImageStore } from '@/stores/imageStore'
 import { useEditorStore } from '@/stores/editorStore'
 
 interface UsageData {
-  generate: { used: number; limit: number; remaining: number }
-  image: { used: number; limit: number; remaining: number }
+  credits: { used: number; limit: number; remaining: number }
+  cost: { generate: number; image: number; 'bg-remove': number }
 }
 
 export default function Header() {
@@ -19,7 +19,7 @@ export default function Header() {
 
   const fetchUsage = useCallback(async () => {
     try {
-      const res = await fetch('/api/usage')
+      const res = await fetch('/api/usage', { cache: 'no-store' })
       if (res.ok) setUsage(await res.json())
     } catch { /* ignore */ }
   }, [])
@@ -214,45 +214,48 @@ export default function Header() {
 
                 <div style={{ height: 1, background: 'var(--border)', margin: '0 0 12px' }} />
 
-                {/* 사용량 */}
+                {/* 크레딧 */}
                 <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--text3)', letterSpacing: 1, textTransform: 'uppercase', margin: '0 0 10px' }}>
-                  플랜 사용량
+                  이번 달 크레딧
                 </p>
 
                 {usage ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                    {/* 상세페이지 생성 */}
+                    {/* 전체 크레딧 바 */}
                     <div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>
-                        <span>상세페이지 생성</span>
-                        <span>{usage.generate.used}/{usage.generate.limit} · {usage.generate.remaining}회 남음</span>
+                        <span>잔여 크레딧</span>
+                        <span style={{ fontWeight: 700, color: 'var(--text)' }}>
+                          {usage.credits.remaining} / {usage.credits.limit}
+                        </span>
                       </div>
-                      <div style={{ height: 4, background: 'var(--surface3)', borderRadius: 2, overflow: 'hidden' }}>
+                      <div style={{ height: 6, background: 'var(--surface3)', borderRadius: 3, overflow: 'hidden' }}>
                         <div style={{
-                          height: '100%', borderRadius: 2, transition: 'width 0.3s',
-                          width: `${(usage.generate.used / usage.generate.limit) * 100}%`,
-                          background: usage.generate.remaining <= 2 ? 'var(--red)' : 'var(--accent)',
+                          height: '100%', borderRadius: 3, transition: 'width 0.3s',
+                          width: `${(usage.credits.used / usage.credits.limit) * 100}%`,
+                          background: usage.credits.remaining <= 50 ? 'var(--red)' : 'var(--accent)',
                         }} />
                       </div>
                     </div>
 
-                    {/* AI 이미지 생성 */}
-                    <div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>
-                        <span>AI 이미지 생성</span>
-                        <span>{usage.image.used}/{usage.image.limit} · {usage.image.remaining}회 남음</span>
+                    {/* 기능별 단가 안내 */}
+                    <div style={{ fontSize: 10, color: 'var(--text3)', lineHeight: 1.7, paddingTop: 4, borderTop: '1px solid var(--border)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span>상세페이지 생성</span>
+                        <span style={{ color: 'var(--text2)' }}>{usage.cost.generate} 크레딧</span>
                       </div>
-                      <div style={{ height: 4, background: 'var(--surface3)', borderRadius: 2, overflow: 'hidden' }}>
-                        <div style={{
-                          height: '100%', borderRadius: 2, transition: 'width 0.3s',
-                          width: `${(usage.image.used / usage.image.limit) * 100}%`,
-                          background: usage.image.remaining <= 1 ? 'var(--red)' : 'var(--green)',
-                        }} />
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span>AI 이미지 생성</span>
+                        <span style={{ color: 'var(--text2)' }}>{usage.cost.image} 크레딧</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span>배경 제거</span>
+                        <span style={{ color: 'var(--text2)' }}>{usage.cost['bg-remove']} 크레딧</span>
                       </div>
                     </div>
 
                     <p style={{ fontSize: 9, color: 'var(--text3)', margin: 0 }}>
-                      매일 자정 초기화
+                      매달 1일 자정(KST) 초기화
                     </p>
                   </div>
                 ) : (

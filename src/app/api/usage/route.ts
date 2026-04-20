@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { checkRateLimit } from '@/lib/rateLimit'
+import { getCreditStatus, CREDIT_COST } from '@/lib/rateLimit'
 
 export async function GET() {
   const session = await getServerSession(authOptions)
@@ -9,11 +9,10 @@ export async function GET() {
     return NextResponse.json({ error: '로그인 필요' }, { status: 401 })
   }
 
-  const generate = await checkRateLimit(session.user.id, 'generate', session.user.email)
-  const image = await checkRateLimit(session.user.id, 'image', session.user.email)
+  const status = await getCreditStatus(session.user.id, session.user.email)
 
   return NextResponse.json({
-    generate: { used: generate.limit - generate.remaining, limit: generate.limit, remaining: generate.remaining },
-    image: { used: image.limit - image.remaining, limit: image.limit, remaining: image.remaining },
+    credits: status,       // { used, remaining, limit }
+    cost: CREDIT_COST,     // { generate, image, 'bg-remove' }
   })
 }

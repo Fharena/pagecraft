@@ -1,31 +1,37 @@
 /**
- * 일일 사용량 제한
- * - 배포: Vercel KV (Redis) — 인스턴스 간 공유, 정확한 카운트
- * - 로컬: 메모리 폴백 — KV 환경변수 없으면 자동 전환
+ * 월간 크레딧 시스템
+ * - 매달 500 크레딧 지급 (월 초기화)
+ * - 기능별 차등 소비: 상세 1, AI 이미지 5, 배경 제거 5
+ * - 배포: Vercel KV (Redis) / 로컬: 메모리 폴백
  */
 import { kv } from '@vercel/kv'
 
-const DAILY_LIMIT = 10 // 1인 1일 상세페이지 생성 10회
-const AI_IMAGE_LIMIT = 5 // 1인 1일 AI 이미지 생성 5회
+const MONTHLY_CREDITS = 500
+
+export const CREDIT_COST = {
+  generate: 1,     // 상세페이지 생성
+  image: 5,        // AI 이미지 생성
+  'bg-remove': 5,  // 배경 제거
+} as const
+
+export type CreditType = keyof typeof CREDIT_COST
 
 const useKV = !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN)
 
-// 관리자 이메일 — 사용량 제한 없음
+// 관리자 이메일 — 크레딧 무제한
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim()).filter(Boolean)
 
-// ── 메모리 폴백 (로컬 개발용) ──
+// 메모리 폴백
 const memoryMap = new Map<string, number>()
 
-function getToday(): string {
-  return new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().split('T')[0]
+/** KST 기준 이번 달 키 (YYYY-MM) */
+function getMonthKey(userId: string): string {
+  const kst = new Date(Date.now() + 9 * 60 * 60 * 1000)
+  const ym = kst.toISOString().slice(0, 7)
+  return `credits:${userId}:${ym}`
 }
 
-function makeKey(userId: string, type: string): string {
-  return `usage:${type}:${userId}:${getToday()}`
-}
-
-// ── KV 기반 ──
-async function getCountKV(key: string): Promise<number> {
+async function getUsedKV(key: string): Promise<number> {
   try {
     const val = await kv.get<number>(key)
     return val || 0
@@ -34,55 +40,88 @@ async function getCountKV(key: string): Promise<number> {
   }
 }
 
-async function incrementKV(key: string): Promise<void> {
+async function addUsedKV(key: string, cost: number): Promise<void> {
   try {
-    await kv.incr(key)
-    // 자정 지나면 자동 삭제 (TTL 25시간)
-    await kv.expire(key, 25 * 60 * 60)
+    await kv.incrby(key, cost)
+    // 32일 TTL — 다음 달 초 지나면 자동 삭제
+    await kv.expire(key, 32 * 24 * 60 * 60)
   } catch { /* ignore */ }
 }
 
-// ── 메모리 기반 ──
-function getCountMemory(key: string): number {
+function getUsedMemory(key: string): number {
   return memoryMap.get(key) || 0
 }
 
-function incrementMemory(key: string): void {
-  memoryMap.set(key, (memoryMap.get(key) || 0) + 1)
+function addUsedMemory(key: string, cost: number): void {
+  memoryMap.set(key, (memoryMap.get(key) || 0) + cost)
 }
 
-// ── 공통 API ──
 export function isAdmin(email: string | null | undefined): boolean {
   return !!email && ADMIN_EMAILS.includes(email)
 }
 
-export async function checkRateLimit(userId: string, type: 'generate' | 'image', email?: string | null): Promise<{
+/**
+ * 크레딧 잔액 + 요청한 기능 실행 가능 여부
+ */
+export async function checkCredits(
+  userId: string,
+  type: CreditType,
+  email?: string | null,
+): Promise<{
   allowed: boolean
+  used: number
   remaining: number
   limit: number
+  cost: number
 }> {
-  const limit = type === 'generate' ? DAILY_LIMIT : AI_IMAGE_LIMIT
+  const cost = CREDIT_COST[type]
 
-  // 관리자는 무제한
   if (isAdmin(email)) {
-    return { allowed: true, remaining: 999, limit: 999 }
+    return { allowed: true, used: 0, remaining: 99999, limit: 99999, cost }
   }
 
-  const key = makeKey(userId, type)
-  const count = useKV ? await getCountKV(key) : getCountMemory(key)
+  const key = getMonthKey(userId)
+  const used = useKV ? await getUsedKV(key) : getUsedMemory(key)
+  const remaining = Math.max(0, MONTHLY_CREDITS - used)
 
   return {
-    allowed: count < limit,
-    remaining: Math.max(0, limit - count),
-    limit,
+    allowed: remaining >= cost,
+    used,
+    remaining,
+    limit: MONTHLY_CREDITS,
+    cost,
   }
 }
 
-export async function incrementUsage(userId: string, type: 'generate' | 'image'): Promise<void> {
-  const key = makeKey(userId, type)
+/**
+ * 현재 크레딧 상태만 조회 (기능 체크 없음)
+ */
+export async function getCreditStatus(userId: string, email?: string | null): Promise<{
+  used: number
+  remaining: number
+  limit: number
+}> {
+  if (isAdmin(email)) {
+    return { used: 0, remaining: 99999, limit: 99999 }
+  }
+  const key = getMonthKey(userId)
+  const used = useKV ? await getUsedKV(key) : getUsedMemory(key)
+  return {
+    used,
+    remaining: Math.max(0, MONTHLY_CREDITS - used),
+    limit: MONTHLY_CREDITS,
+  }
+}
+
+/**
+ * 크레딧 소비 (기능 실행 후)
+ */
+export async function consumeCredits(userId: string, type: CreditType): Promise<void> {
+  const cost = CREDIT_COST[type]
+  const key = getMonthKey(userId)
   if (useKV) {
-    await incrementKV(key)
+    await addUsedKV(key, cost)
   } else {
-    incrementMemory(key)
+    addUsedMemory(key, cost)
   }
 }

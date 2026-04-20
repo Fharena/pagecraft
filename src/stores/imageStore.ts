@@ -25,6 +25,7 @@ interface ImageState {
   thumbnailImageId: string | null
   thumbnailDataUrl: string | null
   bgRemoveEnabled: boolean
+  bgSelectedIds: string[]
   aiModelEnabled: boolean
   aiModelGender: 'male' | 'female'
   _hydrated: boolean
@@ -38,6 +39,9 @@ interface ImageState {
   setStoreIntroImage: (dataUrl: string | null) => void
   setTermsImage: (dataUrl: string | null) => void
   setBgRemoveEnabled: (enabled: boolean) => void
+  toggleBgSelect: (id: string) => void
+  selectAllForBg: () => void
+  deselectAllForBg: () => void
   setAiModelEnabled: (enabled: boolean) => void
   setAiModelGender: (gender: 'male' | 'female') => void
   clearImages: () => void
@@ -57,6 +61,7 @@ export const useImageStore = create<ImageState>()((set, get) => ({
   storeIntroImage: null,
   termsImage: null,
   bgRemoveEnabled: false,
+  bgSelectedIds: [],
   aiModelEnabled: false,
   aiModelGender: 'female',
   _hydrated: false,
@@ -121,7 +126,16 @@ export const useImageStore = create<ImageState>()((set, get) => ({
     saveToLocal(LS_TERMS, dataUrl)
   },
 
-  setBgRemoveEnabled: (enabled) => set({ bgRemoveEnabled: enabled }),
+  setBgRemoveEnabled: (enabled) => set({ bgRemoveEnabled: enabled, bgSelectedIds: [] }),
+  toggleBgSelect: (id) => set((state) => ({
+    bgSelectedIds: state.bgSelectedIds.includes(id)
+      ? state.bgSelectedIds.filter((x) => x !== id)
+      : [...state.bgSelectedIds, id],
+  })),
+  selectAllForBg: () => set((state) => ({
+    bgSelectedIds: state.images.filter((img) => !img.bgRemoved).map((img) => img.id),
+  })),
+  deselectAllForBg: () => set({ bgSelectedIds: [] }),
   setAiModelEnabled: (enabled) => set({ aiModelEnabled: enabled }),
   setAiModelGender: (gender) => set({ aiModelGender: gender }),
 
@@ -139,6 +153,7 @@ export const useImageStore = create<ImageState>()((set, get) => ({
       storeIntroImage: loadFromLocal(LS_STORE_INTRO),
       termsImage: loadFromLocal(LS_TERMS),
       bgRemoveEnabled: false,
+      bgSelectedIds: [],
       aiModelEnabled: false,
       aiModelGender: 'female',
     })

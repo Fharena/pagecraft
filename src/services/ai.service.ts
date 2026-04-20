@@ -332,6 +332,67 @@ function getCameraFocus(
   return { part: '전신', shot: '풀샷', crop: '전신' }
 }
 
+/**
+ * Gemini를 이용한 배경 제거
+ * 상품 사진에서 배경만 제거하고 투명(PNG) 또는 흰색 배경으로 반환
+ */
+export async function removeBackgroundGemini(imageDataUrl: string): Promise<string> {
+  const apiKey = getApiKey()
+  const base64 = imageDataUrl.replace(/^data:image\/\w+;base64,/, '')
+
+  const prompt = `TASK: Replace the ENTIRE background of this image with a solid pure white color (#FFFFFF, RGB 255,255,255). Keep the product(s) identical to the original.
+
+OUTPUT BACKGROUND MUST BE: Plain white only. No table, no floor, no wall, no shelves, no store, no furniture, no other products in background, no gradients, no textures, no shadows on ground. Just solid white everywhere except the product.
+
+PRODUCT PRESERVATION:
+- Keep ALL products visible in original image. If 2 shoes, output 2 shoes. If 3 items, output 3 items.
+- Keep their exact pose, angle, position, proportions, colors, logos, and textures identical to original.
+- Do not move, rotate, or reorient anything.
+
+WHAT TO REMOVE:
+- All background scenery (store, shelves, tables, floors, walls)
+- All supporting objects (boxes the product sits on, stands, pedestals, hands, mannequins)
+- Shadows cast on the ground
+- Any text, labels, or tags not on the product itself
+
+Final result: exact same product(s) in same position, floating on pure solid white (#FFFFFF). Absolutely no other visual elements in the background.`
+
+  const body = {
+    contents: [{
+      role: 'user',
+      parts: [
+        { text: prompt },
+        { inlineData: { mimeType: 'image/jpeg', data: base64 } },
+      ],
+    }],
+    generationConfig: {
+      responseModalities: ['IMAGE', 'TEXT'],
+    },
+  }
+
+  const res = await geminiRequest(
+    `${GEMINI_BASE}/${getImageModel()}:generateContent?key=${apiKey}`,
+    body,
+  )
+
+  if (!res.ok) {
+    const err = await res.text()
+    throw new Error(`Gemini 배경제거 오류: ${res.status} ${err}`)
+  }
+
+  const data = await res.json()
+  const responseParts = data.candidates?.[0]?.content?.parts || []
+  const imagePart = responseParts.find(
+    (p: { inlineData?: { mimeType: string; data: string } }) => p.inlineData?.mimeType?.startsWith('image/'),
+  )
+
+  if (!imagePart?.inlineData) {
+    throw new Error('배경 제거에 실패했습니다.')
+  }
+
+  return `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`
+}
+
 export async function generateModelImage(
   req: AIModelImageRequest,
 ): Promise<string> {

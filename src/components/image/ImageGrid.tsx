@@ -6,7 +6,11 @@ import Modal from '@/components/ui/Modal'
 import CropEditor from '@/components/image/CropEditor'
 
 export default function ImageGrid() {
-  const { images, removeImage, reorderImages, thumbnailImageId, setThumbnailSource } = useImageStore()
+  const {
+    images, removeImage, reorderImages,
+    thumbnailImageId, setThumbnailSource,
+    bgRemoveEnabled, bgSelectedIds, toggleBgSelect,
+  } = useImageStore()
   const [dragIdx, setDragIdx] = useState<number | null>(null)
   const [previewIdx, setPreviewIdx] = useState<number | null>(null)
   const [cropIdx, setCropIdx] = useState<number | null>(null)
@@ -48,11 +52,31 @@ export default function ImageGrid() {
               style={{ width: '100%', height: '100%', objectFit: 'cover' }}
             />
 
-            {/* BG done badge */}
-            {img.bgRemoved && (
-              <div style={{ position: 'absolute', top: '3px', left: '3px', width: '16px', height: '16px', borderRadius: '50%', background: 'var(--green)', color: '#fff', fontSize: '9px', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2 }}>
+            {/* 좌상단: 배경제거 체크박스 (토글 ON일 때) / 완료 뱃지 */}
+            {bgRemoveEnabled && img.bgRemoved && (
+              <div style={{ position: 'absolute', top: '3px', left: '3px', width: '18px', height: '18px', borderRadius: '4px', background: 'var(--green)', color: '#fff', fontSize: '11px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3 }} title="배경 제거 완료">
                 ✓
               </div>
+            )}
+            {bgRemoveEnabled && !img.bgRemoved && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  toggleBgSelect(img.id)
+                }}
+                title={bgSelectedIds.includes(img.id) ? '선택 해제' : '배경 제거 대상 선택'}
+                style={{
+                  position: 'absolute', top: '3px', left: '3px', width: '18px', height: '18px',
+                  borderRadius: '4px', fontSize: '11px', fontWeight: 700, cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3,
+                  background: bgSelectedIds.includes(img.id) ? 'var(--accent)' : 'rgba(255,255,255,0.9)',
+                  color: bgSelectedIds.includes(img.id) ? '#0c0c10' : 'var(--text3)',
+                  border: `1px solid ${bgSelectedIds.includes(img.id) ? 'var(--accent)' : 'var(--border2)'}`,
+                  padding: 0,
+                }}
+              >
+                {bgSelectedIds.includes(img.id) ? '✓' : ''}
+              </button>
             )}
 
             {/* Thumbnail badge */}

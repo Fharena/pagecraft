@@ -10,7 +10,6 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "@imgly/background-removal": "^1.7.0",
     "@napi-rs/canvas": "^0.1.44",
     "@sentry/nextjs": "^10.49.0",
     "@vercel/analytics": "^2.0.1",
