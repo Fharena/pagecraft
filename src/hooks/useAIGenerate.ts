@@ -4,6 +4,7 @@ import { useCallback } from 'react'
 import { useProductStore } from '@/stores/productStore'
 import { useImageStore } from '@/stores/imageStore'
 import { useEditorStore } from '@/stores/editorStore'
+import { useUsageStore } from '@/stores/usageStore'
 import { api } from '@/lib/api'
 import { compressForAI } from '@/lib/image'
 import type { GeneratedAll, GeneratedTag } from '@/types/ai'
@@ -78,6 +79,8 @@ export function useAIGenerate() {
 
       // content 설정
       setGeneratedContent(result.content)
+      // 크레딧 소비 후 UI 즉시 반영
+      useUsageStore.getState().fetchUsage()
 
       // titles 설정
       if (result.titles?.length > 0) {

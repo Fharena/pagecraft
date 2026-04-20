@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import { useImageStore } from '@/stores/imageStore'
+import { useUsageStore } from '@/stores/usageStore'
 import { api } from '@/lib/api'
 import { compressForAI, whitenNearWhite } from '@/lib/image'
 import { showToast } from '@/components/ui/Toast'
@@ -22,6 +23,8 @@ export function useBgRemoval() {
       })
       // 후처리 — Gemini가 회색빛 배경 만드는 문제 해결
       const whitened = await whitenNearWhite(res.image, 245)
+      // 크레딧 소비 후 UI 즉시 반영
+      useUsageStore.getState().fetchUsage()
       return whitened
     } catch (err) {
       console.error('배경 제거 실패:', err)

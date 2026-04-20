@@ -1,30 +1,23 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { useSession, signOut } from 'next-auth/react'
 import { useProductStore } from '@/stores/productStore'
 import { useImageStore } from '@/stores/imageStore'
 import { useEditorStore } from '@/stores/editorStore'
-
-interface UsageData {
-  credits: { used: number; limit: number; remaining: number }
-  cost: { generate: number; image: number; 'bg-remove': number }
-}
+import { useUsageStore } from '@/stores/usageStore'
 
 export default function Header() {
   const [isDark, setIsDark] = useState(true)
   const [showPanel, setShowPanel] = useState(false)
-  const [usage, setUsage] = useState<UsageData | null>(null)
   const { data: session } = useSession()
+  const { usage, fetchUsage } = useUsageStore()
 
-  const fetchUsage = useCallback(async () => {
-    try {
-      const res = await fetch('/api/usage', { cache: 'no-store' })
-      if (res.ok) setUsage(await res.json())
-    } catch { /* ignore */ }
-  }, [])
+  // 마운트 시 1회 + 패널 열 때마다 최신 조회
+  useEffect(() => {
+    fetchUsage()
+  }, [fetchUsage])
 
-  // 패널 열 때 사용량 조회
   useEffect(() => {
     if (showPanel) fetchUsage()
   }, [showPanel, fetchUsage])

@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react'
 import { useProductStore } from '@/stores/productStore'
 import { useImageStore } from '@/stores/imageStore'
+import { useUsageStore } from '@/stores/usageStore'
 import { api, ApiError } from '@/lib/api'
 import { compressForAI } from '@/lib/image'
 
@@ -37,6 +38,7 @@ export default function AiModelToggle() {
       })
       if (result.image) {
         addImages([result.image], true)
+        useUsageStore.getState().fetchUsage()
       }
     } catch (err) {
       if (err instanceof ApiError) {
