@@ -2,9 +2,9 @@
  * 월간 크레딧 시스템
  * - 매달 500 크레딧 지급 (월 초기화)
  * - 기능별 차등 소비: 상세 1, AI 이미지 5, 배경 제거 5
- * - 배포: Vercel KV (Redis) / 로컬: 메모리 폴백
+ * - 배포: Upstash Redis (KV_REDIS_URL) / 로컬: 메모리 폴백
  */
-import { kv } from '@vercel/kv'
+import Redis from 'ioredis'
 
 const MONTHLY_CREDITS = 500
 
@@ -16,7 +16,27 @@ export const CREDIT_COST = {
 
 export type CreditType = keyof typeof CREDIT_COST
 
-const useKV = !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN)
+// 전역 Redis 인스턴스 (서버리스 cold-start 재사용)
+let redis: Redis | null = null
+function getRedis(): Redis | null {
+  if (redis) return redis
+  const url = process.env.KV_REDIS_URL
+  if (!url) return null
+  try {
+    redis = new Redis(url, {
+      maxRetriesPerRequest: 2,
+      enableReadyCheck: false,
+      lazyConnect: false,
+    })
+    redis.on('error', (err) => console.error('[redis] error:', err.message))
+    return redis
+  } catch (err) {
+    console.error('[redis] init 실패:', err)
+    return null
+  }
+}
+
+const useRedis = !!process.env.KV_REDIS_URL
 
 // 관리자 이메일 — 크레딧 무제한
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim()).filter(Boolean)
@@ -31,21 +51,27 @@ function getMonthKey(userId: string): string {
   return `credits:${userId}:${ym}`
 }
 
-async function getUsedKV(key: string): Promise<number> {
+async function getUsedRedis(key: string): Promise<number> {
+  const r = getRedis()
+  if (!r) return 0
   try {
-    const val = await kv.get<number>(key)
-    return val || 0
+    const val = await r.get(key)
+    return val ? parseInt(val, 10) : 0
   } catch {
     return 0
   }
 }
 
-async function addUsedKV(key: string, cost: number): Promise<void> {
+async function addUsedRedis(key: string, cost: number): Promise<void> {
+  const r = getRedis()
+  if (!r) return
   try {
-    await kv.incrby(key, cost)
+    await r.incrby(key, cost)
     // 32일 TTL — 다음 달 초 지나면 자동 삭제
-    await kv.expire(key, 32 * 24 * 60 * 60)
-  } catch { /* ignore */ }
+    await r.expire(key, 32 * 24 * 60 * 60)
+  } catch (err) {
+    console.error('[redis] addUsed 실패:', err)
+  }
 }
 
 function getUsedMemory(key: string): number {
@@ -81,7 +107,7 @@ export async function checkCredits(
   }
 
   const key = getMonthKey(userId)
-  const used = useKV ? await getUsedKV(key) : getUsedMemory(key)
+  const used = useRedis ? await getUsedRedis(key) : getUsedMemory(key)
   const remaining = Math.max(0, MONTHLY_CREDITS - used)
 
   return {
@@ -105,7 +131,7 @@ export async function getCreditStatus(userId: string, email?: string | null): Pr
     return { used: 0, remaining: 99999, limit: 99999 }
   }
   const key = getMonthKey(userId)
-  const used = useKV ? await getUsedKV(key) : getUsedMemory(key)
+  const used = useRedis ? await getUsedRedis(key) : getUsedMemory(key)
   return {
     used,
     remaining: Math.max(0, MONTHLY_CREDITS - used),
@@ -119,8 +145,8 @@ export async function getCreditStatus(userId: string, email?: string | null): Pr
 export async function consumeCredits(userId: string, type: CreditType): Promise<void> {
   const cost = CREDIT_COST[type]
   const key = getMonthKey(userId)
-  if (useKV) {
-    await addUsedKV(key, cost)
+  if (useRedis) {
+    await addUsedRedis(key, cost)
   } else {
     addUsedMemory(key, cost)
   }
