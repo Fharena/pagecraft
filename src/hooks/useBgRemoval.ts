@@ -3,7 +3,7 @@
 import { useState, useCallback } from 'react'
 import { useImageStore } from '@/stores/imageStore'
 import { api } from '@/lib/api'
-import { compressForAI } from '@/lib/image'
+import { compressForAI, whitenNearWhite } from '@/lib/image'
 import { showToast } from '@/components/ui/Toast'
 
 export function useBgRemoval() {
@@ -20,7 +20,9 @@ export function useBgRemoval() {
       const res = await api.post<{ image: string }>('/api/image/bg-remove', {
         image: compressed,
       })
-      return res.image
+      // 후처리 — Gemini가 회색빛 배경 만드는 문제 해결
+      const whitened = await whitenNearWhite(res.image, 235)
+      return whitened
     } catch (err) {
       console.error('배경 제거 실패:', err)
       return null
