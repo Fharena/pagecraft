@@ -51,19 +51,6 @@ export default function ProductForm() {
         </select>
       </div>
 
-      {/* Memo */}
-      <div className="field-group">
-        <div className="flex items-center gap-[5px] text-[11px] font-medium text-text2 mb-[6px]">
-          <span className="w-[5px] h-[5px] rounded-full bg-accent opacity-70" />추가 설명 (선택)
-        </div>
-        <textarea
-          className="w-full bg-surface2 border border-border rounded-lg px-[11px] py-2 text-[12.5px] text-text font-sans placeholder:text-text3 focus:outline-none focus:border-accent focus:shadow-[0_0_0_3px_var(--accent-dim)] transition-[border-color,box-shadow] duration-150 resize-y min-h-[68px] leading-[1.6]"
-          rows={3}
-          placeholder="색상, 소재, 특징, 타깃 고객 등 자유롭게 입력"
-          value={product.memo}
-          onChange={(e) => setProduct({ memo: e.target.value })}
-        />
-      </div>
     </div>
   )
 }
