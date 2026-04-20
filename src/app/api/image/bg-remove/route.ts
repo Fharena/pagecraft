@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { removeBackgroundGemini } from '@/services/ai.service'
-import { requireAuth, recordUsage } from '@/lib/apiAuth'
+import { requireAuth, refundOnFailure } from '@/lib/apiAuth'
 import { friendlyErrorMessage } from '@/lib/errorMessage'
 
 export const maxDuration = 60
@@ -12,6 +12,7 @@ export async function POST(req: Request) {
   try {
     const body = (await req.json()) as { image: string }
     if (!body.image) {
+      await refundOnFailure(session!.user.id, 'bg-remove', session!.user.email)
       return NextResponse.json(
         { error: '이미지가 필요합니다.' },
         { status: 400 },
@@ -19,10 +20,12 @@ export async function POST(req: Request) {
     }
 
     const result = await removeBackgroundGemini(body.image)
-    await recordUsage(session!.user.id, 'bg-remove')
     return NextResponse.json({ image: result })
   } catch (err) {
     console.error('배경 제거 오류:', err)
+    if (session) {
+      await refundOnFailure(session.user.id, 'bg-remove', session.user.email)
+    }
     return NextResponse.json(
       { error: friendlyErrorMessage(err) },
       { status: 500 },

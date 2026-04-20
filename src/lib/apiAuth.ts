@@ -1,11 +1,22 @@
 import { getServerSession } from 'next-auth'
 import { NextResponse } from 'next/server'
 import { authOptions } from './auth'
-import { checkCredits, consumeCredits, type CreditType } from './rateLimit'
+import { consumeCreditsAtomic, refundCredits, type CreditType } from './rateLimit'
 
 /**
- * API 라우트 인증 + 크레딧 체크
- * 사용법: const { session, error } = await requireAuth('generate')
+ * API 라우트 인증 + 원자적 크레딧 소비
+ * - type 지정 시 크레딧을 즉시 소비 (동시성 안전)
+ * - API 처리 중 실패하면 반드시 `refundOnFailure(userId, type)` 호출해서 환불
+ *
+ * 사용법:
+ *   const { session, error } = await requireAuth('generate')
+ *   if (error) return error
+ *   try {
+ *     ...실제 처리...
+ *   } catch (err) {
+ *     await refundOnFailure(session!.user.id, 'generate', session!.user.email)
+ *     throw err
+ *   }
  */
 export async function requireAuth(
   type?: CreditType
@@ -34,13 +45,14 @@ export async function requireAuth(
   }
 
   if (type) {
-    const { allowed, remaining, limit, cost } = await checkCredits(
+    const { allowed, remaining, limit, cost } = await consumeCreditsAtomic(
       session.user.id,
       type,
       session.user.email,
     )
+
     if (!allowed) {
-      // 다음 달 1일 KST 자정까지 남은 시간 계산
+      // 다음 달 1일 KST 자정 안내
       const kst = new Date(Date.now() + 9 * 60 * 60 * 1000)
       const nextMonth = new Date(Date.UTC(kst.getUTCFullYear(), kst.getUTCMonth() + 1, 1))
       const resetDate = `${nextMonth.getUTCMonth() + 1}월 1일`
@@ -64,8 +76,13 @@ export async function requireAuth(
 }
 
 /**
- * 기능 실행 후 크레딧 차감
+ * 실패 시 크레딧 환불
+ * API 핸들러에서 에러 발생 시 호출
  */
-export async function recordUsage(userId: string, type: CreditType) {
-  await consumeCredits(userId, type)
+export async function refundOnFailure(
+  userId: string,
+  type: CreditType,
+  email?: string | null,
+): Promise<void> {
+  await refundCredits(userId, type, email)
 }
