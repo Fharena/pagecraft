@@ -133,6 +133,25 @@ export default function ImageGrid() {
           style={{ position: 'fixed', inset: 0, zIndex: 10000, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
           onClick={() => setPreviewIdx(null)}
         >
+          {/* 다운로드 버튼 */}
+          <button
+            style={{ position: 'fixed', top: '20px', right: '72px', height: '36px', padding: '0 16px', borderRadius: '18px', background: 'var(--accent)', border: 'none', color: '#0c0c10', fontSize: '13px', fontWeight: 700, cursor: 'pointer', zIndex: 10001, display: 'flex', alignItems: 'center', gap: 6 }}
+            onClick={(e) => {
+              e.stopPropagation()
+              const img = images[previewIdx]
+              if (!img) return
+              const a = document.createElement('a')
+              a.href = img.dataUrl
+              // dataUrl에서 확장자 추출
+              const mime = img.dataUrl.match(/^data:image\/(\w+);/)?.[1] || 'png'
+              a.download = `상품이미지_${previewIdx + 1}.${mime === 'jpeg' ? 'jpg' : mime}`
+              a.click()
+            }}
+          >
+            ⬇ 다운로드
+          </button>
+
+          {/* 닫기 */}
           <button
             style={{ position: 'fixed', top: '20px', right: '24px', width: '36px', height: '36px', borderRadius: '50%', background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff', fontSize: '18px', cursor: 'pointer', zIndex: 10001 }}
             onClick={() => setPreviewIdx(null)}
@@ -143,6 +162,7 @@ export default function ImageGrid() {
             src={images[previewIdx].dataUrl}
             alt="미리보기"
             style={{ maxWidth: '90vw', maxHeight: '90vh', borderRadius: '12px', boxShadow: '0 16px 48px rgba(0,0,0,0.5)' }}
+            onClick={(e) => e.stopPropagation()}
           />
         </div>
       )}
