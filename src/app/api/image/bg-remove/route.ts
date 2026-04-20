@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { removeBackgroundGemini } from '@/services/ai.service'
 import { requireAuth, recordUsage } from '@/lib/apiAuth'
+import { friendlyErrorMessage } from '@/lib/errorMessage'
 
 export const maxDuration = 60
 
@@ -23,7 +24,7 @@ export async function POST(req: Request) {
   } catch (err) {
     console.error('배경 제거 오류:', err)
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : '배경 제거 실패' },
+      { error: friendlyErrorMessage(err) },
       { status: 500 },
     )
   }

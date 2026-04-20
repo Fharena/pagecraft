@@ -40,11 +40,16 @@ export async function requireAuth(
       session.user.email,
     )
     if (!allowed) {
+      // 다음 달 1일 KST 자정까지 남은 시간 계산
+      const kst = new Date(Date.now() + 9 * 60 * 60 * 1000)
+      const nextMonth = new Date(Date.UTC(kst.getUTCFullYear(), kst.getUTCMonth() + 1, 1))
+      const resetDate = `${nextMonth.getUTCMonth() + 1}월 1일`
+
       return {
         session: null,
         error: NextResponse.json(
           {
-            error: `크레딧이 부족합니다. (필요 ${cost} / 남은 ${remaining} / 월 ${limit})`,
+            error: `크레딧이 부족합니다 (필요 ${cost}개 · 잔여 ${remaining}개). ${resetDate} 00:00에 자동으로 초기화됩니다.`,
             remaining,
             limit,
             cost,

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { generateAll } from '@/services/ai.service'
 import { requireAuth, recordUsage } from '@/lib/apiAuth'
+import { friendlyErrorMessage } from '@/lib/errorMessage'
 import type { AIGenerateRequest } from '@/types/ai'
 
 export async function POST(req: Request) {
@@ -23,7 +24,7 @@ export async function POST(req: Request) {
   } catch (err) {
     console.error('AI 통합 생성 오류:', err)
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'AI 생성 실패' },
+      { error: friendlyErrorMessage(err) },
       { status: 500 },
     )
   }
