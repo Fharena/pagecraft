@@ -249,3 +249,66 @@ Encountered a script tag while rendering React component
 - Preview 환경에만 `SKIP_AUTH=true`, `NEXT_PUBLIC_SKIP_AUTH=true` 설정
 - Production은 정상 인증 유지
 - Vercel Environment Variables에서 환경별 체크박스로 구분
+
+---
+
+## #18. 크레딧 소비 race condition
+
+**문제 상황**
+- 100명 동시 요청 시나리오에서 크레딧 체크와 기록이 **분리**되어 있었음
+- `check → recordUsage` 사이 시간차 → 한도 초과 누적 가능
+- 예: 잔여 1 크레딧 상태에서 2개 요청이 동시 도달 → 둘 다 `check` 통과 → 둘 다 `recordUsage` 성공 → -1 잔액
+
+**해결: Redis INCRBY + 롤백 패턴**
+```ts
+// src/lib/rateLimit.ts
+const newValue = await r.incrby(key, cost)          // 원자 증가
+if (newValue > MONTHLY_CREDITS) {
+  await r.decrby(key, cost)                         // 한도 초과 시 롤백
+  return { allowed: false }
+}
+return { allowed: true, remaining: LIMIT - newValue }
+```
+
+- `consumeCreditsAtomic()` 함수로 체크+차감 1회 원자 연산
+- API 실패 시 `refundCredits()` (DECRBY)로 자동 환불
+- `apiAuth.ts`의 `requireAuth(type)` + `refundOnFailure()` 헬퍼로 래핑
+
+**관련 파일**: `src/lib/rateLimit.ts`, `src/lib/apiAuth.ts`
+
+---
+
+## #19. 이미지 생성 품질 저하 (압축 분기)
+
+**문제**: AI 이미지 생성/배경 제거 결과가 흐릿하거나 화질이 들쭉날쭉함
+
+**원인**
+- 모든 AI 호출이 `compressForAI(400px/0.5)`를 공용으로 사용
+- 텍스트 분석엔 충분하지만 **이미지 생성 모델은 400px 입력으로 출력을 1024px로 업스케일 추정** → 품질 손실
+
+**해결: 용도별 압축 분리**
+
+| 함수 | 해상도/품질 | 용도 |
+|------|------------|------|
+| `compressForAI` | 400px / 0.5 | 텍스트 분석만 |
+| `compressForImageGen` | 1024px / 0.9 | **이미지 생성/배경제거** |
+| `compressForRender` | 780px / 0.75 | 서버 PNG 렌더 |
+
+**페이로드 검증**
+- 1024px × 0.9 JPEG 한 장 ≈ 300~500KB
+- AI 모델 이미지: 최대 3장 → ~1.5MB (Vercel 4.5MB 제한 안전)
+- 배경 제거: 1장 → 0.5MB (안전)
+
+**관련 파일**: `src/lib/image.ts`, `src/hooks/useBgRemoval.ts`, `src/components/image/AiModelToggle.tsx`
+
+---
+
+## #20. 이미지 생성용 base64 payload 최적화
+
+**문제**: AI 모델 이미지 생성에서 원래 5장까지 업로드 가능 → 1024px × 5 = ~2.5MB + 기타 → 4.5MB 한계 근접
+
+**해결**
+- AI 모델 이미지 입력을 **최대 3장**으로 제한 (`images.slice(0, 3)`)
+- 실제 모델 생성에 3장 이상 참고 이미지는 불필요 (Gemini가 주요 특징만 추출)
+
+**관련 파일**: `src/components/image/AiModelToggle.tsx`
