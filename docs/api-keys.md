@@ -54,24 +54,26 @@
 
 ---
 
-### 3. Upstash Redis (크레딧 저장소)
+### 3. Vercel Marketplace Redis (크레딧 저장소)
 
 **용도**: 월간 크레딧 원자 INCRBY 저장. 없으면 메모리 폴백(서버 재시작 시 초기화).
 
-**옵션 A — Vercel Marketplace (권장, 원클릭)**:
-1. Vercel 프로젝트 → Storage → Create → **Upstash** Redis 선택
+**권장 — Vercel Marketplace (원클릭)**:
+1. Vercel 프로젝트 → Storage → Create → **Redis** 선택 (Redis Cloud by Redis Inc.)
+   - 다른 제공자(Upstash Redis 등)도 사용 가능 — 모두 TCP `KV_REDIS_URL` 주입 방식이라 코드 변경 없음
 2. 자동으로 `KV_REDIS_URL` 환경변수 주입됨
 3. 로컬 개발에는 Vercel 대시보드에서 값 복사해서 `.env.local`에 붙여넣기
 
-**옵션 B — Upstash 직접 가입**:
-1. [upstash.com](https://upstash.com) 가입
-2. Redis Database 생성 (Region: Asia Pacific)
-3. Connection string 복사:
-   ```env
-   KV_REDIS_URL=rediss://default:xxxxx@apn1-xxx.upstash.io:6379
-   ```
+**직접 가입 (선택)**:
+- Redis Cloud: [redis.com/cloud](https://redis.com/cloud) 가입 → Database 생성 → Connection string 복사
+- Upstash Redis: [upstash.com](https://upstash.com) 가입 → Redis Database 생성 (Region: Asia Pacific)
+- 어느 쪽이든 `rediss://...` TCP URL을 `KV_REDIS_URL`에 넣으면 동작
 
-> **주의**: `@vercel/kv` 패키지는 **사용 안 함**. Vercel Marketplace Redis는 TCP만 제공하고 REST API가 없으므로 `ioredis`로 직접 연결함.
+```env
+KV_REDIS_URL=rediss://default:xxxxx@host:6379
+```
+
+> **주의**: `@vercel/kv` 패키지는 **사용 안 함**. Vercel Marketplace Redis 제공자들이 대체로 REST API를 기본 제공하지 않으므로 `ioredis`로 TCP 직접 연결함.
 
 ---
 
@@ -111,7 +113,7 @@ GOOGLE_CLIENT_SECRET=GOCSPX-xxxxx
 NEXTAUTH_SECRET=openssl_rand_base64_32_결과
 NEXTAUTH_URL=http://localhost:3000
 
-KV_REDIS_URL=rediss://default:xxxxx@xxx.upstash.io:6379
+KV_REDIS_URL=rediss://default:xxxxx@host:6379
 ADMIN_EMAILS=you@example.com
 
 # === 선택 ===

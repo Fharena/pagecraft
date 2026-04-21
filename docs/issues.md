@@ -181,7 +181,7 @@ Encountered a script tag while rendering React component
 **문제**: 크레딧이 실제로 저장되지 않고 계속 500/500 표시
 
 **원인**
-- Vercel이 최근 KV 제품을 Upstash Marketplace Redis로 변경
+- Vercel이 최근 KV 제품을 Marketplace Redis(Redis Cloud / Upstash 등 선택)로 변경
 - 제공 환경변수: `KV_REDIS_URL` (TCP) 하나만 — REST API 없음
 - `@vercel/kv` 패키지는 `KV_REST_API_URL/TOKEN`을 요구 → 호환 안 됨
 

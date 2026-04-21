@@ -24,7 +24,7 @@ flowchart TB
 
   subgraph External["외부 서비스"]
     Gemini[Gemini AI]
-    Redis[(Upstash Redis<br/>크레딧 저장)]
+    Redis[(Vercel Marketplace Redis<br/>크레딧 저장)]
     Sentry[Sentry]
     Analytics[Vercel Analytics]
   end
@@ -56,7 +56,7 @@ flowchart TB
 | AI 텍스트 | Gemini 2.5 Flash | 통합 생성 (content + titles + tags) |
 | AI 이미지 | Gemini 2.5 Flash Image | 모델 생성, 배경 제거 |
 | 서버 렌더링 | @napi-rs/canvas | 본문 PNG, 한글 폰트 보장 |
-| 크레딧 저장 | Upstash Redis (ioredis) | `KV_REDIS_URL` TCP 연결 |
+| 크레딧 저장 | Vercel Marketplace Redis (ioredis) | `KV_REDIS_URL` TCP 연결 |
 | 이미지 저장 | IndexedDB (idb 래퍼) | 용량 무제한 |
 | 에러 모니터링 | Sentry v10 | `instrumentation-client.ts` |
 | 배포 | Vercel | main 자동 배포 |
@@ -163,7 +163,7 @@ credits:{userId}:{YYYY-MM} = 이번 달 누적 사용량
 | 스토어/약관 이미지 | localStorage | 재사용 빈도 높음, 영구 보존 |
 | 제품 정보 | sessionStorage (zustand) | 세션 중 유지 |
 | AI 생성 결과 | sessionStorage (zustand) | 세션 중 유지 |
-| 유저 크레딧 | Upstash Redis | 서버리스 인스턴스 간 공유 |
+| 유저 크레딧 | Vercel Marketplace Redis | 서버리스 인스턴스 간 공유 |
 | 세션 쿠키 | NextAuth JWT | HTTP-only 암호화 |
 
 ---

@@ -16,7 +16,7 @@
 - **스타일**: Tailwind CSS v4 (`@theme` 디자인 토큰) + 다크/라이트 모드
 - **타입 체크**: TypeScript strict 모드
 - **인증**: NextAuth v4 + Google OAuth (JWT 세션)
-- **크레딧**: Upstash Redis 원자 INCRBY, 월 500 크레딧 시스템
+- **크레딧**: Vercel Marketplace Redis 원자 INCRBY, 월 500 크레딧 시스템
 - **렌더링**: 하이브리드 (클라 HTML 미리보기 + 서버 @napi-rs/canvas PNG + 클라 canvas 합성)
 
 ## 주요 개선
@@ -29,5 +29,5 @@
 
 ## 단순화된 외부 의존성
 - 초기 계획: Claude + GPT Image + Stability AI + Supabase
-- 현재: **Gemini 단독** + Google OAuth + Upstash Redis
+- 현재: **Gemini 단독** + Google OAuth + Vercel Marketplace Redis
 - 유지보수 부담 ↓, 단일 공급자 리스크는 향후 Recraft/@imgly로 배경제거 분리 검토

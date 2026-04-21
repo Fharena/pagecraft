@@ -45,7 +45,7 @@ NEXTAUTH_SECRET=            # openssl rand -base64 32 로 생성
 NEXTAUTH_URL=               # 배포 URL (예: https://pagecraft.vercel.app)
 
 # === 크레딧 저장소 (프로덕션 필수) ===
-KV_REDIS_URL=               # Vercel Marketplace Redis (Upstash) TCP URL
+KV_REDIS_URL=               # Vercel Marketplace Redis TCP URL
 ADMIN_EMAILS=               # 쉼표 구분, 해당 계정은 크레딧 무제한
 
 # === 에러 모니터링 (선택) ===
@@ -85,7 +85,7 @@ NEXT_PUBLIC_SKIP_AUTH=true
 | **AI 이미지** | Gemini 2.5 Flash Image | 모델 이미지 생성, 배경 제거 (생성형) |
 | **서버 렌더링** | @napi-rs/canvas | PNG 본문 렌더 (한글 폰트 보장) |
 | **인증** | NextAuth v4 + Google OAuth | JWT 세션 쿠키 |
-| **크레딧 저장** | Upstash Redis (ioredis) | `KV_REDIS_URL` TCP 연결, 원자 INCRBY |
+| **크레딧 저장** | Vercel Marketplace Redis (ioredis) | `KV_REDIS_URL` TCP 연결, 원자 INCRBY |
 | **이미지 저장** | IndexedDB (idb 래퍼) | 용량 무제한, sessionStorage 5MB 제한 회피 |
 | **에러 모니터링** | Sentry v10 | `instrumentation-client.ts` |
 | **배포** | Vercel | main 브랜치 자동 배포 |
@@ -171,13 +171,14 @@ GOOGLE_CLIENT_ID=xxx
 GOOGLE_CLIENT_SECRET=xxx
 NEXTAUTH_SECRET=xxx
 NEXTAUTH_URL=https://your-domain.vercel.app
-KV_REDIS_URL=rediss://...@...upstash.io:6379
+KV_REDIS_URL=rediss://default:xxxxx@host:6379
 ADMIN_EMAILS=you@example.com
 ```
 
 ### Vercel Marketplace Redis 연결
 
-1. Vercel 프로젝트 → Storage → Create → Upstash Redis
+1. Vercel 프로젝트 → Storage → Create → **Redis** (Redis Cloud) 선택
+   - Upstash Redis 등 다른 Marketplace Redis 제공자도 가능 — 전부 TCP `KV_REDIS_URL` 주입 방식 동일
 2. 자동으로 `KV_REDIS_URL` 환경변수 주입됨
 3. `@vercel/kv`가 아닌 **`ioredis`** 로 TCP 직접 연결 (Marketplace Redis는 REST API 미제공)
 
