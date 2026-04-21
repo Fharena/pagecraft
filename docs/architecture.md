@@ -96,17 +96,24 @@ flowchart TB
   ↓
 POST /api/ai/copy
   ↓
-requireAuth('generate') — 인증 + 크레딧 체크 (1 크레딧)
-  ↓
+requireAuth('generate') — 인증 + 원자 INCRBY 선차감 (1 크레딧)
+  ↓ (크레딧 부족 시 429 + 초기화일 안내)
 ai.service.generateAll() — Gemini 통합 프롬프트
   → content + titles 5개 + tags 20개
   ↓
 safeParseJSON — 깨진 JSON 보정
   ↓
-크레딧 차감 (recordUsage) + 응답
+성공: 응답 반환 / 실패: refundOnFailure(DECRBY 환불) + 500
   ↓
 클라이언트: editorStore에 분배 + usageStore.fetchUsage()
 ```
+
+### 이미지 압축 분기 (용도별)
+| 함수 | 해상도/품질 | 용도 | 압축 이유 |
+|------|------------|------|-----------|
+| `compressForAI` | 400px / 0.5 | 텍스트 분석 (AI 통합 생성) | Gemini는 내용만 파악 → 작게 |
+| `compressForImageGen` | 1024px / 0.9 | 이미지 생성/배경제거 | Gemini 출력 품질 보존 |
+| `compressForRender` | 780px / 0.75 | 서버 PNG 렌더 | Vercel 4.5MB 제한 대응 |
 
 ---
 
@@ -117,6 +124,23 @@ safeParseJSON — 깨진 JSON 보정
 - 기능별 차등: 상세 1 / 이미지 5 / 배경제거 5
 - Redis TTL 32일 자동 만료
 
+### 원자 소비 (Atomic Consumption)
+동시 요청 race condition 방지를 위해 **Redis INCRBY + 롤백** 방식 사용:
+
+```ts
+// lib/rateLimit.ts — consumeCreditsAtomic
+const newValue = await r.incrby(key, cost)        // 원자 증가
+if (newValue > MONTHLY_CREDITS) {
+  await r.decrby(key, cost)                       // 한도 초과 시 롤백
+  return { allowed: false, ... }
+}
+return { allowed: true, remaining: LIMIT - newValue }
+```
+
+- 100명 동시 요청에도 **race condition 없이** 정확한 차감
+- API 실패 시 `refundCredits()`가 `DECRBY`로 자동 환불
+- 로직은 `requireAuth(type)` + `refundOnFailure()` 헬퍼로 래핑
+
 ### 저장소 키
 ```
 credits:{userId}:{YYYY-MM} = 이번 달 누적 사용량
@@ -124,9 +148,10 @@ credits:{userId}:{YYYY-MM} = 이번 달 누적 사용량
 
 ### 폴백
 - `KV_REDIS_URL` 없으면 메모리 Map (개발용, 서버 재시작 시 초기화)
+- 폴백도 동일하게 원자 패턴 유지 (단일 프로세스에서는 자명)
 
 ### 관리자
-- `ADMIN_EMAILS` 쉼표 구분 이메일 → 크레딧 무제한
+- `ADMIN_EMAILS` 쉼표 구분 이메일 → 크레딧 무제한 (Redis 기록 스킵)
 
 ---
 
@@ -277,7 +302,10 @@ NEXT_PUBLIC_SKIP_AUTH=true
 |------|------|
 | 서버 canvas 유지 | 한글 폰트 품질 (html2canvas/dom-to-image-more 한계) |
 | 클라이언트 미리보기 HTML | 실시간 반영 + Vercel body 제한 회피 |
-| Gemini 배경 제거 | 코드 일관성 (추후 Replicate BRIA 전환 예정) |
+| Gemini 배경 제거 | 코드 일관성 우선 (추후 Recraft/BRIA 전환 검토) |
+| 이미지 압축 분기 (400/1024px) | 텍스트 분석과 이미지 생성의 품질 요구가 다름 |
+| AI 3회 호출 → 통합 1회 | 503 확률 1/3 + 레이턴시 단축 |
 | ioredis 직접 연결 | Vercel Marketplace Redis 대응 (REST API 없음) |
+| 원자 INCRBY 크레딧 소비 | 동시 요청 race condition 차단 |
 | 월 단일 크레딧 풀 | 유저별 조합 자유도 우선 (일일 분리 quota 대비) |
 | IndexedDB 이미지 저장 | sessionStorage 5MB 제한 회피 |
