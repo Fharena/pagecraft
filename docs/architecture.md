@@ -23,7 +23,8 @@ flowchart TB
   end
 
   subgraph External["외부 서비스"]
-    Gemini[Gemini AI]
+    Gemini[Gemini AI<br/>텍스트 + 모델 이미지]
+    Replicate[Replicate Recraft<br/>배경 제거]
     Redis[(Vercel Marketplace Redis<br/>크레딧 저장)]
     Sentry[Sentry]
     Analytics[Vercel Analytics]
@@ -35,6 +36,7 @@ flowchart TB
   UI --> Auth
   UI --> APIs
   APIs --> Gemini
+  APIs --> Replicate
   APIs --> Redis
   APIs --> Canvas
   Canvas --> Compose
@@ -54,7 +56,8 @@ flowchart TB
 | 상태 관리 | Zustand v5 | persist + 수동 hydrate |
 | 인증 | NextAuth v4 + Google OAuth | JWT 세션 쿠키 |
 | AI 텍스트 | Gemini 2.5 Flash | 통합 생성 (content + titles + tags) |
-| AI 이미지 | Gemini 2.5 Flash Image | 모델 생성, 배경 제거 |
+| AI 모델 이미지 | Gemini 2.5 Flash Image | 상품 착용 모델 이미지 생성 |
+| 배경 제거 | Replicate Recraft (`recraft-remove-background`) | 진짜 픽셀 마스크 → 투명 PNG, $0.01/건 |
 | 서버 렌더링 | @napi-rs/canvas | 본문 PNG, 한글 폰트 보장 |
 | 크레딧 저장 | Vercel Marketplace Redis (ioredis) | `KV_REDIS_URL` TCP 연결 |
 | 이미지 저장 | IndexedDB (idb 래퍼) | 용량 무제한 |
@@ -112,7 +115,7 @@ safeParseJSON — 깨진 JSON 보정
 | 함수 | 해상도/품질 | 용도 | 압축 이유 |
 |------|------------|------|-----------|
 | `compressForAI` | 400px / 0.5 | 텍스트 분석 (AI 통합 생성) | Gemini는 내용만 파악 → 작게 |
-| `compressForImageGen` | 1024px / 0.9 | 이미지 생성/배경제거 | Gemini 출력 품질 보존 |
+| `compressForImageGen` | 1024px / 0.9 | 이미지 생성(Gemini) / 배경제거(Recraft) | 출력 품질 보존, Recraft 256~4096px 요구 만족 |
 | `compressForRender` | 780px / 0.75 | 서버 PNG 렌더 | Vercel 4.5MB 제한 대응 |
 
 ---
@@ -276,6 +279,7 @@ src/
 ```env
 # 필수
 GEMINI_API_KEY=                  # Gemini 유료 plan 권장
+REPLICATE_API_TOKEN=             # Recraft 배경제거 ($0.01/건)
 GOOGLE_CLIENT_ID=                # OAuth
 GOOGLE_CLIENT_SECRET=
 NEXTAUTH_SECRET=                 # openssl rand -base64 32
@@ -302,7 +306,7 @@ NEXT_PUBLIC_SKIP_AUTH=true
 |------|------|
 | 서버 canvas 유지 | 한글 폰트 품질 (html2canvas/dom-to-image-more 한계) |
 | 클라이언트 미리보기 HTML | 실시간 반영 + Vercel body 제한 회피 |
-| Gemini 배경 제거 | 코드 일관성 우선 (추후 Recraft/BRIA 전환 검토) |
+| Replicate Recraft 배경 제거 | 진짜 픽셀 마스크 품질 + $0.01/건 (Gemini $0.04 대비 75% 절감). Gemini 코드는 주석으로 보존 |
 | 이미지 압축 분기 (400/1024px) | 텍스트 분석과 이미지 생성의 품질 요구가 다름 |
 | AI 3회 호출 → 통합 1회 | 503 확률 1/3 + 레이턴시 단축 |
 | ioredis 직접 연결 | Vercel Marketplace Redis 대응 (REST API 없음) |

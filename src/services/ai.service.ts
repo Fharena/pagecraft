@@ -1,3 +1,4 @@
+import Replicate from 'replicate'
 import type {
   AIGenerateRequest,
   AITitleRequest,
@@ -9,6 +10,16 @@ import type {
 } from '@/types/ai'
 
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models'
+
+// Replicate 클라이언트 싱글톤 (서버리스 cold-start 대응)
+let replicateClient: Replicate | null = null
+function getReplicate(): Replicate {
+  if (replicateClient) return replicateClient
+  const token = process.env.REPLICATE_API_TOKEN
+  if (!token) throw new Error('REPLICATE_API_TOKEN 환경변수가 설정되지 않았습니다.')
+  replicateClient = new Replicate({ auth: token })
+  return replicateClient
+}
 
 /**
  * Gemini가 가끔 깨진 JSON을 반환함 — 코드블록, trailing comma, 제어문자 등 정리
@@ -333,65 +344,117 @@ function getCameraFocus(
 }
 
 /**
- * Gemini를 이용한 배경 제거
- * 상품 사진에서 배경만 제거하고 투명(PNG) 또는 흰색 배경으로 반환
+ * Recraft 배경 제거 (via Replicate)
+ * - 모델: recraft-ai/recraft-remove-background
+ * - 입력: 256~4096px, max 5MB (PNG/JPG/WEBP). data URL 직접 전달 OK
+ * - 출력: 완전 투명 PNG (alpha channel) — 상세페이지 흰 배경에 자연스럽게 올려짐
+ * - 비용: $0.01/호출 (Gemini $0.04 대비 약 75% 절감)
+ * - 처리 시간: 평균 3~10초 → maxDuration=60 안전
  */
-export async function removeBackgroundGemini(imageDataUrl: string): Promise<string> {
-  const apiKey = getApiKey()
-  const base64 = imageDataUrl.replace(/^data:image\/\w+;base64,/, '')
+export async function removeBackgroundRecraft(imageDataUrl: string): Promise<string> {
+  const replicate = getReplicate()
 
-  const prompt = `TASK: Replace the ENTIRE background of this image with a solid pure white color (#FFFFFF, RGB 255,255,255). Keep the product(s) identical to the original.
+  // Replicate SDK가 data URL 입력을 받아, 내부적으로 자동 업로드 처리함
+  const output = (await replicate.run(
+    'recraft-ai/recraft-remove-background',
+    { input: { image: imageDataUrl } },
+  )) as unknown
 
-OUTPUT BACKGROUND MUST BE: Plain white only. No table, no floor, no wall, no shelves, no store, no furniture, no other products in background, no gradients, no textures, no shadows on ground. Just solid white everywhere except the product.
-
-PRODUCT PRESERVATION:
-- Keep ALL products visible in original image. If 2 shoes, output 2 shoes. If 3 items, output 3 items.
-- Keep their exact pose, angle, position, proportions, colors, logos, and textures identical to original.
-- Do not move, rotate, or reorient anything.
-
-WHAT TO REMOVE:
-- All background scenery (store, shelves, tables, floors, walls)
-- All supporting objects (boxes the product sits on, stands, pedestals, hands, mannequins)
-- Shadows cast on the ground
-- Any text, labels, or tags not on the product itself
-
-Final result: exact same product(s) in same position, floating on pure solid white (#FFFFFF). Absolutely no other visual elements in the background.`
-
-  const body = {
-    contents: [{
-      role: 'user',
-      parts: [
-        { text: prompt },
-        { inlineData: { mimeType: 'image/jpeg', data: base64 } },
-      ],
-    }],
-    generationConfig: {
-      responseModalities: ['IMAGE', 'TEXT'],
-    },
+  // SDK 버전에 따라 결과가 FileOutput 객체 / 문자열 / 배열일 수 있음 — 방어적 처리
+  let resultUrl: string
+  if (typeof output === 'string') {
+    resultUrl = output
+  } else if (Array.isArray(output) && typeof output[0] === 'string') {
+    resultUrl = output[0]
+  } else if (output && typeof output === 'object' && 'url' in output) {
+    const urlFn = (output as { url: () => URL | string }).url
+    const urlValue = urlFn.call(output)
+    resultUrl = typeof urlValue === 'string' ? urlValue : urlValue.toString()
+  } else {
+    throw new Error('Recraft 응답 형식을 인식하지 못했습니다.')
   }
 
-  const res = await geminiRequest(
-    `${GEMINI_BASE}/${getImageModel()}:generateContent?key=${apiKey}`,
-    body,
-  )
-
-  if (!res.ok) {
-    const err = await res.text()
-    throw new Error(`Gemini 배경제거 오류: ${res.status} ${err}`)
+  // 결과 URL → 서버 fetch → base64 변환
+  // 이유: (1) 기존 클라 API 계약 유지 (2) CORS 우회 (3) 서버→Replicate 단일 네트워크 경로
+  const imageRes = await fetch(resultUrl)
+  if (!imageRes.ok) {
+    throw new Error(`Recraft 결과 이미지 다운로드 실패: ${imageRes.status}`)
   }
-
-  const data = await res.json()
-  const responseParts = data.candidates?.[0]?.content?.parts || []
-  const imagePart = responseParts.find(
-    (p: { inlineData?: { mimeType: string; data: string } }) => p.inlineData?.mimeType?.startsWith('image/'),
-  )
-
-  if (!imagePart?.inlineData) {
-    throw new Error('배경 제거에 실패했습니다.')
-  }
-
-  return `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`
+  const buffer = await imageRes.arrayBuffer()
+  const base64 = Buffer.from(buffer).toString('base64')
+  return `data:image/png;base64,${base64}`
 }
+
+/* ============================================================================
+ * [보류] Gemini 기반 배경 제거 — 향후 재활용 가능성으로 주석 보존
+ * ----------------------------------------------------------------------------
+ * 전환 사유:
+ *   - 품질: Gemini는 "생성" 모델이라 상품 pose/개수 변형되는 경우 존재
+ *   - 비용: Gemini 약 $0.04/건 vs Recraft $0.01/건 (75% 절감)
+ *   - 출력: Gemini는 흰색 근사 배경 → whitenNearWhite 후처리 필요.
+ *           Recraft는 진짜 픽셀 마스크 기반 투명 PNG → 후처리 불필요
+ * 복귀 조건:
+ *   - Replicate/Recraft 장애 또는 정책 변경
+ *   - Gemini가 pro 플랜에서 별도 배경제거 전용 모델 지원 시
+ * ============================================================================
+ *
+ * export async function removeBackgroundGemini(imageDataUrl: string): Promise<string> {
+ *   const apiKey = getApiKey()
+ *   const base64 = imageDataUrl.replace(/^data:image\/\w+;base64,/, '')
+ *
+ *   const prompt = `TASK: Replace the ENTIRE background of this image with a solid pure white color (#FFFFFF, RGB 255,255,255). Keep the product(s) identical to the original.
+ *
+ * OUTPUT BACKGROUND MUST BE: Plain white only. No table, no floor, no wall, no shelves, no store, no furniture, no other products in background, no gradients, no textures, no shadows on ground. Just solid white everywhere except the product.
+ *
+ * PRODUCT PRESERVATION:
+ * - Keep ALL products visible in original image. If 2 shoes, output 2 shoes. If 3 items, output 3 items.
+ * - Keep their exact pose, angle, position, proportions, colors, logos, and textures identical to original.
+ * - Do not move, rotate, or reorient anything.
+ *
+ * WHAT TO REMOVE:
+ * - All background scenery (store, shelves, tables, floors, walls)
+ * - All supporting objects (boxes the product sits on, stands, pedestals, hands, mannequins)
+ * - Shadows cast on the ground
+ * - Any text, labels, or tags not on the product itself
+ *
+ * Final result: exact same product(s) in same position, floating on pure solid white (#FFFFFF). Absolutely no other visual elements in the background.`
+ *
+ *   const body = {
+ *     contents: [{
+ *       role: 'user',
+ *       parts: [
+ *         { text: prompt },
+ *         { inlineData: { mimeType: 'image/jpeg', data: base64 } },
+ *       ],
+ *     }],
+ *     generationConfig: {
+ *       responseModalities: ['IMAGE', 'TEXT'],
+ *     },
+ *   }
+ *
+ *   const res = await geminiRequest(
+ *     `${GEMINI_BASE}/${getImageModel()}:generateContent?key=${apiKey}`,
+ *     body,
+ *   )
+ *
+ *   if (!res.ok) {
+ *     const err = await res.text()
+ *     throw new Error(`Gemini 배경제거 오류: ${res.status} ${err}`)
+ *   }
+ *
+ *   const data = await res.json()
+ *   const responseParts = data.candidates?.[0]?.content?.parts || []
+ *   const imagePart = responseParts.find(
+ *     (p: { inlineData?: { mimeType: string; data: string } }) => p.inlineData?.mimeType?.startsWith('image/'),
+ *   )
+ *
+ *   if (!imagePart?.inlineData) {
+ *     throw new Error('배경 제거에 실패했습니다.')
+ *   }
+ *
+ *   return `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`
+ * }
+ */
 
 export async function generateModelImage(
   req: AIModelImageRequest,
