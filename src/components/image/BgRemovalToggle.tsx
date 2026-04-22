@@ -3,15 +3,14 @@
 import { useCallback } from 'react'
 import { useImageStore } from '@/stores/imageStore'
 import { useBgRemoval } from '@/hooks/useBgRemoval'
-import { showToast } from '@/components/ui/Toast'
 
 export default function BgRemovalToggle() {
   const {
     bgRemoveEnabled, setBgRemoveEnabled,
-    images, updateImage,
+    images,
     bgSelectedIds, selectAllForBg, deselectAllForBg,
   } = useImageStore()
-  const { isProcessing, progress, removeBackground } = useBgRemoval()
+  const { isProcessing, progress, processImages } = useBgRemoval()
 
   const toggle = () => setBgRemoveEnabled(!bgRemoveEnabled)
 
@@ -25,28 +24,12 @@ export default function BgRemovalToggle() {
     else selectAllForBg()
   }
 
-  // 선택된 이미지만 처리
+  // 선택된 이미지만 동시성 3 배치 처리 (useBgRemoval.processImages에 위임)
   const processSelected = useCallback(async () => {
     if (bgSelectedIds.length === 0) return
-    const targets = images.filter((img) => bgSelectedIds.includes(img.id) && !img.bgRemoved)
-    if (targets.length === 0) return
-
-    let successCount = 0
-    for (const img of targets) {
-      const result = await removeBackground(img.dataUrl)
-      if (result) {
-        updateImage(img.id, { dataUrl: result, bgRemoved: true })
-        successCount++
-      }
-    }
-
+    await processImages(bgSelectedIds)
     deselectAllForBg()
-    if (successCount === targets.length) {
-      showToast(`배경 제거 완료 (${successCount}장)`)
-    } else {
-      showToast(`${successCount}/${targets.length}장 처리 · 일부 실패`, 'error')
-    }
-  }, [bgSelectedIds, images, removeBackground, updateImage, deselectAllForBg])
+  }, [bgSelectedIds, processImages, deselectAllForBg])
 
   const canRun = selectedCount > 0 && !isProcessing
 

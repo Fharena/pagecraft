@@ -48,23 +48,27 @@ export function useBgRemoval() {
     }
   }, [])
 
-  // 배치 처리 — 동시성 제한 병렬
-  const processAllImages = useCallback(async () => {
-    const unprocessed = images.filter((img) => !img.bgRemoved)
-    if (unprocessed.length === 0) return
+  /**
+   * 배치 배경 제거 — 동시성 3 병렬 처리
+   * @param targetIds 처리할 이미지 ID 배열 (없으면 미처리 전체)
+   * - Replicate 정상 한도(600/min) 안에서 안전
+   * - 신규 계정 throttle(6/min, burst=1) 걸려도 서버 쪽 429 재시도가 흡수
+   * - 기존 순차 처리 대비 이론상 3배 속도 향상
+   */
+  const processImages = useCallback(async (targetIds?: string[]): Promise<number> => {
+    const targets = targetIds
+      ? images.filter((img) => targetIds.includes(img.id) && !img.bgRemoved)
+      : images.filter((img) => !img.bgRemoved)
+    if (targets.length === 0) return 0
 
     setIsProcessing(true)
 
-    // 동시성 3으로 제한한 배치 처리
-    // - Replicate 정상 한도(600/min) 안에서 안전
-    // - 신규 계정 throttle(6/min, burst=1) 걸려도 서버 쪽 429 재시도가 흡수
-    // - 기존 순차 처리 대비 이론상 3배 속도 향상
     const CONCURRENCY = 3
     let successCount = 0
     let completed = 0
 
-    const queue = [...unprocessed]
-    setProgress(`배경 제거 중... (0/${unprocessed.length})`)
+    const queue = [...targets]
+    setProgress(`배경 제거 중... (0/${targets.length})`)
 
     async function worker() {
       while (queue.length > 0) {
@@ -76,11 +80,11 @@ export function useBgRemoval() {
           successCount++
         }
         completed++
-        setProgress(`배경 제거 중... (${completed}/${unprocessed.length})`)
+        setProgress(`배경 제거 중... (${completed}/${targets.length})`)
       }
     }
 
-    const workerCount = Math.min(CONCURRENCY, unprocessed.length)
+    const workerCount = Math.min(CONCURRENCY, targets.length)
     await Promise.all(Array.from({ length: workerCount }, () => worker()))
 
     // 배치 완료 후 크레딧 한 번만 재조회 (중간에 여러번 fetchUsage 불필요)
@@ -88,12 +92,17 @@ export function useBgRemoval() {
 
     setIsProcessing(false)
     setProgress('')
-    if (successCount === unprocessed.length) {
+
+    if (successCount === targets.length) {
       showToast(`배경 제거 완료 (${successCount}장)`)
     } else {
-      showToast(`${successCount}/${unprocessed.length}장 처리 · 일부 실패`, 'error')
+      showToast(`${successCount}/${targets.length}장 처리 · 일부 실패`, 'error')
     }
+    return successCount
   }, [images, updateImage])
+
+  // 기존 API 호환 — 미처리 이미지 전체 처리
+  const processAllImages = useCallback(() => processImages(), [processImages])
 
   const restoreAll = useCallback(() => {
     images.forEach((img) => {
@@ -107,6 +116,7 @@ export function useBgRemoval() {
     isModelLoading,
     isProcessing,
     progress,
+    processImages,
     processAllImages,
     restoreAll,
     removeBackground,
