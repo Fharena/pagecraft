@@ -49,11 +49,12 @@ export function useBgRemoval() {
   }, [])
 
   /**
-   * 배치 배경 제거 — 동시성 3 병렬 처리
+   * 배치 배경 제거 — 동시성 5 병렬 처리
    * @param targetIds 처리할 이미지 ID 배열 (없으면 미처리 전체)
-   * - Replicate 정상 한도(600/min) 안에서 안전
-   * - 신규 계정 throttle(6/min, burst=1) 걸려도 서버 쪽 429 재시도가 흡수
-   * - 기존 순차 처리 대비 이론상 3배 속도 향상
+   * - Replicate 정상 한도(600/min) 안에서 피크 100 동접까진 여유
+   * - 서버 쪽 429 재시도로 일시적 초과는 자동 흡수
+   * - 기존 순차 처리 대비 약 5배 속도 향상
+   * - 피크 유저가 수천 규모 되면 Redis 기반 글로벌 rate limiter 필요
    */
   const processImages = useCallback(async (targetIds?: string[]): Promise<number> => {
     const targets = targetIds
@@ -63,7 +64,7 @@ export function useBgRemoval() {
 
     setIsProcessing(true)
 
-    const CONCURRENCY = 3
+    const CONCURRENCY = 5
     let successCount = 0
     let completed = 0
 
