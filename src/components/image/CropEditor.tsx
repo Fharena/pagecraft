@@ -130,49 +130,52 @@ export default function CropEditor({ imageData, imageId, onClose }: CropEditorPr
   const handleSize = 12
 
   return (
-    <div
-      ref={containerRef}
-      className="relative select-none"
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
-    >
-      <img
-        ref={imgRef}
-        src={imageData}
-        alt="크롭 대상"
-        className="w-full rounded-lg"
-        draggable={false}
-      />
+    <div className="select-none">
+      {/* 이미지 + 오버레이 영역 — 버튼과 분리해서 overlay가 버튼을 덮지 않도록 */}
+      <div
+        ref={containerRef}
+        className="relative"
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+      >
+        <img
+          ref={imgRef}
+          src={imageData}
+          alt="크롭 대상"
+          className="w-full rounded-lg block"
+          draggable={false}
+        />
 
-      {/* Dimming overlay */}
-      {imgSize.w > 0 && (
-        <>
-          <div className="absolute inset-0 bg-black/50 rounded-lg" style={{ clipPath: `polygon(0 0, 100% 0, 100% 100%, 0 100%, 0 0, ${crop.x}px ${crop.y}px, ${crop.x}px ${crop.y + crop.h}px, ${crop.x + crop.w}px ${crop.y + crop.h}px, ${crop.x + crop.w}px ${crop.y}px, ${crop.x}px ${crop.y}px)` }} />
+        {/* Dimming overlay */}
+        {imgSize.w > 0 && (
+          <>
+            <div className="absolute inset-0 bg-black/50 rounded-lg pointer-events-none" style={{ clipPath: `polygon(0 0, 100% 0, 100% 100%, 0 100%, 0 0, ${crop.x}px ${crop.y}px, ${crop.x}px ${crop.y + crop.h}px, ${crop.x + crop.w}px ${crop.y + crop.h}px, ${crop.x + crop.w}px ${crop.y}px, ${crop.x}px ${crop.y}px)` }} />
 
-          {/* Crop box border */}
-          <div
-            className="absolute border-2 border-white/80 cursor-move"
-            style={{ left: crop.x, top: crop.y, width: crop.w, height: crop.h }}
-            onMouseDown={(e) => handleMouseDown(e, 'move')}
-          >
-            {/* Corner handles */}
-            {(['nw', 'ne', 'sw', 'se'] as const).map((corner) => (
-              <div
-                key={corner}
-                className="absolute bg-white border border-border2 z-10"
-                style={{
-                  width: handleSize, height: handleSize,
-                  cursor: `${corner}-resize`,
-                  ...(corner.includes('n') ? { top: -handleSize / 2 } : { bottom: -handleSize / 2 }),
-                  ...(corner.includes('w') ? { left: -handleSize / 2 } : { right: -handleSize / 2 }),
-                }}
-                onMouseDown={(e) => handleMouseDown(e, corner)}
-              />
-            ))}
-          </div>
-        </>
-      )}
+            {/* Crop box border */}
+            <div
+              className="absolute border-2 border-white/80 cursor-move"
+              style={{ left: crop.x, top: crop.y, width: crop.w, height: crop.h }}
+              onMouseDown={(e) => handleMouseDown(e, 'move')}
+            >
+              {/* Corner handles */}
+              {(['nw', 'ne', 'sw', 'se'] as const).map((corner) => (
+                <div
+                  key={corner}
+                  className="absolute bg-white border border-border2 z-10"
+                  style={{
+                    width: handleSize, height: handleSize,
+                    cursor: `${corner}-resize`,
+                    ...(corner.includes('n') ? { top: -handleSize / 2 } : { bottom: -handleSize / 2 }),
+                    ...(corner.includes('w') ? { left: -handleSize / 2 } : { right: -handleSize / 2 }),
+                  }}
+                  onMouseDown={(e) => handleMouseDown(e, corner)}
+                />
+              ))}
+            </div>
+          </>
+        )}
+      </div>
 
       <div className="flex gap-2 mt-4 justify-end">
         <Button variant="secondary" onClick={onClose}>취소</Button>
