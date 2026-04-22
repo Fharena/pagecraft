@@ -102,9 +102,23 @@ export function resizeForUpload(dataUrl: string, maxSize: number, quality: numbe
   })
 }
 
-/** AI 분석용 — 400px, 품질 0.5 */
+/** AI 텍스트 분석용 — 400px, 품질 0.5 (Gemini가 내용만 파악) */
 export function compressForAI(dataUrl: string) {
   return resizeForUpload(dataUrl, 400, 0.5)
+}
+
+/** AI 이미지 생성용 — 1024px, 품질 0.9 (Gemini 출력 품질 보존) */
+export function compressForImageGen(dataUrl: string) {
+  return resizeForUpload(dataUrl, 1024, 0.9)
+}
+
+/**
+ * Recraft 배경 제거용 — 2048px, 품질 0.92
+ * Recraft는 해상도 보존형이라 원본에 가까운 품질을 보내야 결과도 선명.
+ * Vercel 4.5MB 제한: 2048px JPEG 0.92 ≈ 0.5~1.5MB → base64 33% 감안해도 여유.
+ */
+export function compressForBgRemoval(dataUrl: string) {
+  return resizeForUpload(dataUrl, 2048, 0.92)
 }
 
 /** 서버 렌더링 전송용 — 780px, 품질 0.75 (Vercel 4.5MB 대응) */

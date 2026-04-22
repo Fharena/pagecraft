@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useImageStore } from '@/stores/imageStore'
 import Modal from '@/components/ui/Modal'
 import CropEditor from '@/components/image/CropEditor'
@@ -14,6 +14,24 @@ export default function ImageGrid() {
   const [dragIdx, setDragIdx] = useState<number | null>(null)
   const [previewIdx, setPreviewIdx] = useState<number | null>(null)
   const [cropIdx, setCropIdx] = useState<number | null>(null)
+
+  // 뷰어 열려있을 때 키보드 방향키로 이동
+  useEffect(() => {
+    if (previewIdx === null) return
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault()
+        setPreviewIdx((i) => (i !== null ? Math.max(0, i - 1) : null))
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault()
+        setPreviewIdx((i) => (i !== null ? Math.min(images.length - 1, i + 1) : null))
+      } else if (e.key === 'Escape') {
+        setPreviewIdx(null)
+      }
+    }
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [previewIdx, images.length])
 
   const handleDragStart = useCallback((idx: number) => {
     setDragIdx(idx)
@@ -133,7 +151,13 @@ export default function ImageGrid() {
           style={{ position: 'fixed', inset: 0, zIndex: 10000, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
           onClick={() => setPreviewIdx(null)}
         >
-          {/* 다운로드 버튼 */}
+          {/* 상단: 카운터 + 다운로드 + 닫기 */}
+          <div style={{ position: 'fixed', top: '20px', left: 0, right: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10001, pointerEvents: 'none' }}>
+            <span style={{ background: 'rgba(255,255,255,0.12)', borderRadius: '20px', padding: '4px 14px', fontSize: '12px', color: 'rgba(255,255,255,0.7)', fontFamily: 'var(--mono)' }}>
+              {previewIdx + 1} / {images.length}
+            </span>
+          </div>
+
           <button
             style={{ position: 'fixed', top: '20px', right: '72px', height: '36px', padding: '0 16px', borderRadius: '18px', background: 'var(--accent)', border: 'none', color: '#0c0c10', fontSize: '13px', fontWeight: 700, cursor: 'pointer', zIndex: 10001, display: 'flex', alignItems: 'center', gap: 6 }}
             onClick={(e) => {
@@ -142,7 +166,6 @@ export default function ImageGrid() {
               if (!img) return
               const a = document.createElement('a')
               a.href = img.dataUrl
-              // dataUrl에서 확장자 추출
               const mime = img.dataUrl.match(/^data:image\/(\w+);/)?.[1] || 'png'
               a.download = `상품이미지_${previewIdx + 1}.${mime === 'jpeg' ? 'jpg' : mime}`
               a.click()
@@ -151,17 +174,43 @@ export default function ImageGrid() {
             ⬇ 다운로드
           </button>
 
-          {/* 닫기 */}
           <button
             style={{ position: 'fixed', top: '20px', right: '24px', width: '36px', height: '36px', borderRadius: '50%', background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff', fontSize: '18px', cursor: 'pointer', zIndex: 10001 }}
             onClick={() => setPreviewIdx(null)}
           >
             ✕
           </button>
+
+          {/* 이전 버튼 */}
+          {previewIdx > 0 && (
+            <button
+              style={{ position: 'fixed', left: '20px', top: '50%', transform: 'translateY(-50%)', width: '48px', height: '48px', borderRadius: '50%', background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', fontSize: '22px', cursor: 'pointer', zIndex: 10001, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.15s', backdropFilter: 'blur(4px)' }}
+              onClick={(e) => { e.stopPropagation(); setPreviewIdx(previewIdx - 1) }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.28)')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.15)')}
+              title="이전 이미지 (←)"
+            >
+              ‹
+            </button>
+          )}
+
+          {/* 다음 버튼 */}
+          {previewIdx < images.length - 1 && (
+            <button
+              style={{ position: 'fixed', right: '20px', top: '50%', transform: 'translateY(-50%)', width: '48px', height: '48px', borderRadius: '50%', background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', fontSize: '22px', cursor: 'pointer', zIndex: 10001, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.15s', backdropFilter: 'blur(4px)' }}
+              onClick={(e) => { e.stopPropagation(); setPreviewIdx(previewIdx + 1) }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.28)')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.15)')}
+              title="다음 이미지 (→)"
+            >
+              ›
+            </button>
+          )}
+
           <img
             src={images[previewIdx].dataUrl}
             alt="미리보기"
-            style={{ maxWidth: '90vw', maxHeight: '90vh', borderRadius: '12px', boxShadow: '0 16px 48px rgba(0,0,0,0.5)' }}
+            style={{ maxWidth: '80vw', maxHeight: '90vh', borderRadius: '12px', boxShadow: '0 16px 48px rgba(0,0,0,0.5)' }}
             onClick={(e) => e.stopPropagation()}
           />
         </div>

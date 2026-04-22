@@ -33,10 +33,13 @@ npm run dev
 `.env.local` 파일에 아래 키를 설정:
 
 ```env
-# === Gemini (필수) ===
+# === Gemini (필수) — 텍스트 + AI 모델 이미지 생성 ===
 GEMINI_API_KEY=             # Google AI Studio에서 발급
 GEMINI_TEXT_MODEL=          # 기본값: gemini-2.5-flash
 GEMINI_IMAGE_MODEL=         # 기본값: gemini-2.5-flash-image
+
+# === Replicate (필수) — 배경 제거 (Recraft) ===
+REPLICATE_API_TOKEN=        # replicate.com/account/api-tokens ($0.01/건)
 
 # === 인증 (배포 시 필수) ===
 GOOGLE_CLIENT_ID=           # Google Cloud OAuth 클라이언트 ID
@@ -82,7 +85,8 @@ NEXT_PUBLIC_SKIP_AUTH=true
 | **UI** | Tailwind CSS v4 | `@theme` 디자인 토큰 |
 | **상태 관리** | Zustand v5 | persist (IndexedDB + localStorage + sessionStorage) |
 | **AI 텍스트** | Gemini 2.5 Flash | 카피 + 상품명 + 태그 통합 1회 생성 |
-| **AI 이미지** | Gemini 2.5 Flash Image | 모델 이미지 생성, 배경 제거 (생성형) |
+| **AI 모델 이미지** | Gemini 2.5 Flash Image | 상품 착용 모델 이미지 생성 (생성형) |
+| **배경 제거** | Replicate Recraft (`recraft-remove-background`) | 진짜 픽셀 마스크, 투명 PNG, $0.01/건 |
 | **서버 렌더링** | @napi-rs/canvas | PNG 본문 렌더 (한글 폰트 보장) |
 | **인증** | NextAuth v4 + Google OAuth | JWT 세션 쿠키 |
 | **크레딧 저장** | Vercel Marketplace Redis (ioredis) | `KV_REDIS_URL` TCP 연결, 원자 INCRBY |
@@ -101,7 +105,7 @@ NEXT_PUBLIC_SKIP_AUTH=true
 | 단계 | 기능 | 처리 위치 |
 |------|------|----------|
 | 1 | 상품 사진 업로드 (원본 저장, IndexedDB) | 클라이언트 |
-| 2 | 배경 제거 (선택) | 서버 Gemini + 클라 `whitenNearWhite` 후처리 |
+| 2 | 배경 제거 (선택) | 서버 Replicate Recraft → 투명 PNG |
 | 3 | AI 모델 이미지 생성 (선택) | 서버 (Gemini) |
 | 4 | 상세페이지 콘텐츠 + 상품명 5개 + 태그 20개 통합 생성 | 서버 (Gemini 1회 호출) |
 | 5 | 실시간 미리보기 (HTML React 컴포넌트) | 클라이언트 |
@@ -167,6 +171,7 @@ Vercel 대시보드 → Settings → Environment Variables:
 
 ```
 GEMINI_API_KEY=xxx
+REPLICATE_API_TOKEN=r8_xxx
 GOOGLE_CLIENT_ID=xxx
 GOOGLE_CLIENT_SECRET=xxx
 NEXTAUTH_SECRET=xxx

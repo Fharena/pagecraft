@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { removeBackgroundGemini } from '@/services/ai.service'
+import { removeBackgroundRecraft } from '@/services/ai.service'
 import { requireAuth, refundOnFailure } from '@/lib/apiAuth'
 import { friendlyErrorMessage } from '@/lib/errorMessage'
 
@@ -19,7 +19,7 @@ export async function POST(req: Request) {
       )
     }
 
-    const result = await removeBackgroundGemini(body.image)
+    const result = await removeBackgroundRecraft(body.image)
     return NextResponse.json({ image: result })
   } catch (err) {
     console.error('배경 제거 오류:', err)
